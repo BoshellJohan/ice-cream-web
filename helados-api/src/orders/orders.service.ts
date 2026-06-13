@@ -124,7 +124,7 @@ export class OrdersService {
     });
   }
 
-  findAll(query: GetOrdersQueryDto) {
+  async findAll(query: GetOrdersQueryDto) {
     const where: { createdAt?: { gte?: Date; lte?: Date } } = {};
     if (query.from || query.to) {
       where.createdAt = {};
@@ -144,7 +144,7 @@ export class OrdersService {
 
   async findOne(id: string) {
     const order = await this.prisma.order.findUnique({ where: { id }, include: orderInclude });
-    if (!order) throw new NotFoundException(`Order ${id} not found`);
+    if (!order) throw new NotFoundException(`Pedido ${id} no encontrado`);
     return order;
   }
 }
