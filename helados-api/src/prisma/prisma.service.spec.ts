@@ -9,6 +9,8 @@ describe('PrismaService', () => {
       providers: [PrismaService],
     }).compile();
     service = module.get(PrismaService);
+    jest.spyOn(service, '$connect').mockResolvedValue();
+    jest.spyOn(service, '$disconnect').mockResolvedValue();
   });
 
   it('should be defined', () => {
