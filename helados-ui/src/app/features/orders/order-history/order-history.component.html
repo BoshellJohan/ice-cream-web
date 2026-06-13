@@ -1,0 +1,108 @@
+<div class="min-h-screen bg-gray-950 p-5">
+
+  <!-- Header + filters -->
+  <div class="flex flex-wrap items-center gap-3 mb-5">
+    <h1 class="text-2xl font-bold text-white">Historial de pedidos</h1>
+    <div class="flex items-center gap-2 ml-auto flex-wrap">
+      <button (click)="setToday()" class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg touch-manipulation">
+        Hoy
+      </button>
+      <input
+        [(ngModel)]="fromDate"
+        type="date"
+        class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+      />
+      <span class="text-gray-400 text-sm">—</span>
+      <input
+        [(ngModel)]="toDate"
+        type="date"
+        class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+      />
+      <button (click)="load()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg font-medium touch-manipulation">
+        Buscar
+      </button>
+    </div>
+  </div>
+
+  @if (loading) {
+    <p class="text-gray-400">Cargando...</p>
+  } @else if (orders.length === 0) {
+    <div class="text-center py-16">
+      <p class="text-gray-500 text-lg">No hay pedidos en este rango de fechas.</p>
+    </div>
+  } @else {
+    <div class="space-y-3">
+      @for (order of orders; track order.id) {
+        <div class="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+
+          <!-- Collapsed row -->
+          <button
+            (click)="toggleExpand(order.id)"
+            class="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-800/50 transition-colors touch-manipulation"
+          >
+            <div class="flex-1 min-w-0">
+              <p class="text-white font-medium text-sm truncate">{{ itemSummary(order) }}</p>
+              <div class="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+                <span>{{ order.staff.name }}</span>
+                <span>·</span>
+                <span>{{ order.createdAt | date:'HH:mm' }}</span>
+                @if (order.coupon) {
+                  <span class="text-purple-400">· 🏷 {{ order.coupon.code }}</span>
+                }
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="text-white font-bold">{{ formatPrice(order.totalAmount) }}</p>
+              @if (order.discountAmount > 0) {
+                <p class="text-green-400 text-xs">-{{ formatPrice(order.discountAmount) }}</p>
+              }
+            </div>
+            <span class="text-gray-500 text-lg">{{ expandedId === order.id ? '▲' : '▼' }}</span>
+          </button>
+
+          <!-- Expanded detail -->
+          @if (expandedId === order.id) {
+            <div class="border-t border-gray-800 px-5 pb-4 pt-3 space-y-3">
+              @for (item of order.items; track item.id) {
+                <div class="bg-gray-800 rounded-xl p-3 space-y-1 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-white font-medium">{{ item.product.name }} — {{ item.flavor.name }}</span>
+                    <span class="text-purple-400">{{ formatPrice(item.itemTotal) }}</span>
+                  </div>
+                  @for (ts of item.toppings; track ts.id) {
+                    <div class="text-gray-400 pl-3 text-xs">
+                      <span>{{ ts.topping.name }} × {{ ts.quantity }}</span>
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (order.notes) {
+                <p class="text-gray-400 text-sm italic">📝 {{ order.notes }}</p>
+              }
+
+              <div class="text-sm space-y-1 pt-1">
+                <div class="flex justify-between text-gray-400">
+                  <span>Subtotal</span>
+                  <span>{{ formatPrice(order.subtotal) }}</span>
+                </div>
+                @if (order.discountAmount > 0) {
+                  <div class="flex justify-between text-green-400">
+                    <span>Descuento{{ order.coupon ? ' (' + order.coupon.code + ')' : '' }}</span>
+                    <span>-{{ formatPrice(order.discountAmount) }}</span>
+                  </div>
+                }
+                <div class="flex justify-between text-white font-bold border-t border-gray-700 pt-1 mt-1">
+                  <span>Total</span>
+                  <span>{{ formatPrice(order.totalAmount) }}</span>
+                </div>
+              </div>
+
+              <p class="text-gray-500 text-xs">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }} · ID {{ order.id.slice(0,8) }}</p>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
