@@ -7,8 +7,19 @@ import { FlavorsModule } from './flavors/flavors.module';
 import { ToppingsModule } from './toppings/toppings.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { ImagesModule } from './images/images.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, ProductsModule, FlavorsModule, ToppingsModule, CouponsModule, ImagesModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    ProductsModule,
+    FlavorsModule,
+    ToppingsModule,
+    CouponsModule,
+    ImagesModule,
+    OrdersModule,
+  ],
 })
 export class AppModule {}
