@@ -10,7 +10,7 @@ export class CouponsService {
     return this.prisma.coupon.findMany({ orderBy: { code: 'asc' } });
   }
 
-  create(dto: CreateCouponDto) {
+  async create(dto: CreateCouponDto) {
     return this.prisma.coupon.create({
       data: {
         ...dto,

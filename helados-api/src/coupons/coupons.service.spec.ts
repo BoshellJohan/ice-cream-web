@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { UnprocessableEntityException } from '@nestjs/common';
+import { UnprocessableEntityException, NotFoundException } from '@nestjs/common';
 import { CouponsService } from './coupons.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -71,6 +71,40 @@ describe('CouponsService', () => {
       code: 'SAVE10',
       discountType: 'PERCENTAGE',
       discountValue: 10,
+    });
+  });
+
+  describe('create', () => {
+    it('uppercases the code before saving', async () => {
+      const couponData = { id: '1', code: 'SAVE10', discountType: 'PERCENTAGE', discountValue: 10, active: true, validFrom: null, validUntil: null, maxUses: null, usesCount: 0, createdAt: new Date() };
+      mockPrisma.coupon.create.mockResolvedValue(couponData);
+      await service.create({ code: 'save10', discountType: 'PERCENTAGE' as const, discountValue: 10 });
+      expect(mockPrisma.coupon.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ code: 'SAVE10' }) }),
+      );
+    });
+  });
+
+  describe('findAll', () => {
+    it('returns all coupons ordered by code', async () => {
+      mockPrisma.coupon.findMany.mockResolvedValue([]);
+      await service.findAll();
+      expect(mockPrisma.coupon.findMany).toHaveBeenCalledWith({ orderBy: { code: 'asc' } });
+    });
+  });
+
+  describe('deactivate', () => {
+    it('sets active to false', async () => {
+      const coupon = { id: '1', code: 'X', discountType: 'FIXED', discountValue: 5, active: true, validFrom: null, validUntil: null, maxUses: null, usesCount: 0, createdAt: new Date() };
+      mockPrisma.coupon.findUnique.mockResolvedValue(coupon);
+      mockPrisma.coupon.update.mockResolvedValue({ ...coupon, active: false });
+      await service.deactivate('1');
+      expect(mockPrisma.coupon.update).toHaveBeenCalledWith({ where: { id: '1' }, data: { active: false } });
+    });
+
+    it('throws NotFoundException if coupon not found', async () => {
+      mockPrisma.coupon.findUnique.mockResolvedValue(null);
+      await expect(service.deactivate('bad-id')).rejects.toThrow(NotFoundException);
     });
   });
 });

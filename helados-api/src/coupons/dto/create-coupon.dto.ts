@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCouponDto {
@@ -10,6 +10,7 @@ export class CreateCouponDto {
 
   @IsNumber()
   @Min(0)
+  @Max(9999)
   @Type(() => Number)
   discountValue: number;
 
