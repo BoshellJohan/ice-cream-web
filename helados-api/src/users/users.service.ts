@@ -15,11 +15,12 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const email = dto.email.toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new ConflictException('Email already in use');
     const passwordHash = await bcrypt.hash(dto.password, 10);
     return this.prisma.user.create({
-      data: { name: dto.name, email: dto.email, role: dto.role, passwordHash },
+      data: { name: dto.name, email, role: dto.role, passwordHash },
       select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
     });
   }

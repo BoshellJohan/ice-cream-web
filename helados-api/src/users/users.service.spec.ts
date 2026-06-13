@@ -62,4 +62,26 @@ describe('UsersService', () => {
     mockPrisma.user.findUnique.mockResolvedValue(null);
     await expect(service.deactivate('bad-id')).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('create succeeds and does not return passwordHash', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockPrisma.user.create.mockResolvedValue(mockUser);
+    const bcrypt = require('bcrypt');
+    jest.spyOn(bcrypt, 'hash').mockResolvedValue('$2b$10$hashed' as never);
+    const result = await service.create({ name: 'Staff', email: 'staff@helados.com', role: 'STAFF', password: 'pass123' });
+    expect(bcrypt.hash).toHaveBeenCalledWith('pass123', 10);
+    expect(result).not.toHaveProperty('passwordHash');
+  });
+
+  it('create normalizes email to lowercase', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockPrisma.user.create.mockResolvedValue(mockUser);
+    const bcrypt = require('bcrypt');
+    jest.spyOn(bcrypt, 'hash').mockResolvedValue('$2b$10$hashed' as never);
+    await service.create({ name: 'X', email: 'UPPER@HELADOS.COM', role: 'STAFF', password: 'pass123' });
+    expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({ where: { email: 'upper@helados.com' } });
+    expect(mockPrisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ email: 'upper@helados.com' }) }),
+    );
+  });
 });
