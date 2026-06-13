@@ -33,6 +33,7 @@ export class ImageUploadComponent {
       next: (res) => {
         this.loading = false;
         this.uploaded.emit(res.url);
+        input.value = '';
       },
       error: () => {
         this.loading = false;
