@@ -17,10 +17,14 @@ export class ImagesService {
       const stream = cloudinary.uploader.upload_stream(
         { folder },
         (error, result) => {
-          if (error || !result) reject(new InternalServerErrorException('Image upload failed'));
-          else resolve(result.secure_url);
+          if (error || !result) {
+            reject(new InternalServerErrorException('Image upload failed'));
+          } else {
+            resolve(result.secure_url);
+          }
         },
       );
+      stream.on('error', () => reject(new InternalServerErrorException('Image upload failed')));
       streamifier.createReadStream(buffer).pipe(stream);
     });
   }
