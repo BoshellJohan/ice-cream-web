@@ -1,0 +1,24 @@
+<div class="space-y-2">
+  @if (currentImageUrl) {
+    <img [src]="currentImageUrl" alt="Preview" class="h-24 w-24 object-cover rounded-lg border border-gray-700" />
+  } @else {
+    <div class="h-24 w-24 bg-gray-800 rounded-lg border border-gray-700 flex items-center justify-center text-3xl">🍦</div>
+  }
+
+  <label class="cursor-pointer inline-block">
+    <span class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-1.5 rounded-lg transition-colors">
+      {{ loading ? 'Subiendo...' : 'Seleccionar imagen' }}
+    </span>
+    <input
+      type="file"
+      accept="image/*"
+      class="sr-only"
+      [disabled]="loading"
+      (change)="onFileSelected($event)"
+    />
+  </label>
+
+  @if (error) {
+    <p class="text-red-400 text-xs">{{ error }}</p>
+  }
+</div>

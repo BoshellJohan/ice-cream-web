@@ -1,0 +1,108 @@
+<div class="min-h-screen bg-gray-950 p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-white">Cupones</h1>
+    <button (click)="openCreate()" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-5 py-2.5 rounded-xl touch-manipulation">
+      + Nuevo cupón
+    </button>
+  </div>
+
+  @if (loading) {
+    <p class="text-gray-400">Cargando...</p>
+  } @else {
+    <div class="bg-gray-900 rounded-2xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-gray-400 border-b border-gray-800">
+            <th class="text-left px-4 py-3">Código</th>
+            <th class="text-left px-4 py-3">Descuento</th>
+            <th class="text-left px-4 py-3">Usos</th>
+            <th class="text-left px-4 py-3">Válido hasta</th>
+            <th class="text-left px-4 py-3">Estado</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (coupon of coupons; track coupon.id) {
+            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+              <td class="px-4 py-3 font-mono font-bold text-white">{{ coupon.code }}</td>
+              <td class="px-4 py-3 text-purple-400">{{ discountLabel(coupon) }}</td>
+              <td class="px-4 py-3 text-gray-300">{{ coupon.usesCount }} / {{ coupon.maxUses ?? '∞' }}</td>
+              <td class="px-4 py-3 text-gray-300">{{ coupon.validUntil ? (coupon.validUntil | date:'dd/MM/yyyy') : '—' }}</td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-1 rounded"
+                  [class.bg-green-900]="coupon.active" [class.text-green-300]="coupon.active"
+                  [class.bg-gray-700]="!coupon.active" [class.text-gray-400]="!coupon.active">
+                  {{ coupon.active ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="px-4 py-3">
+                @if (coupon.active) {
+                  <button (click)="deactivate(coupon)" class="text-xs bg-red-900/50 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg touch-manipulation">
+                    Desactivar
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      @if (coupons.length === 0) {
+        <p class="text-center text-gray-500 py-8">No hay cupones todavía.</p>
+      }
+    </div>
+  }
+
+  @if (showForm) {
+    <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" (click.self)="showForm = false">
+      <div class="bg-gray-900 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+        <h2 class="text-lg font-bold text-white">Nuevo cupón</h2>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Código</label>
+          <input [(ngModel)]="form.code" type="text" placeholder="VERANO10" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-gray-300 mb-1">Tipo</label>
+            <select [(ngModel)]="form.discountType" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="PERCENTAGE">Porcentaje (%)</option>
+              <option value="FIXED">Fijo ($)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-300 mb-1">Valor</label>
+            <input [(ngModel)]="form.discountValue" type="number" min="0" step="0.01" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Usos máximos (vacío = ilimitado)</label>
+          <input [(ngModel)]="form.maxUses" type="number" min="1" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-gray-300 mb-1">Válido desde</label>
+            <input [(ngModel)]="form.validFrom" type="date" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-300 mb-1">Válido hasta</label>
+            <input [(ngModel)]="form.validUntil" type="date" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+          </div>
+        </div>
+
+        @if (error) {
+          <p class="text-red-400 text-sm">{{ error }}</p>
+        }
+
+        <div class="flex gap-3 pt-2">
+          <button (click)="showForm = false" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl touch-manipulation">Cancelar</button>
+          <button (click)="save()" [disabled]="saving" class="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl touch-manipulation">
+            {{ saving ? 'Creando...' : 'Crear' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
