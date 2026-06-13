@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STAFF
+  ADMIN
+}
+
+enum ProductType {
+  CONE
+  CONTAINER
+  CUP
+  BOWL
+}
+
+enum ProductSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum SnapshotPeriod {
+  MORNING
+  NIGHT
+}
+
+model User {
+  id           String              @id @default(uuid())
+  name         String
+  email        String              @unique
+  passwordHash String
+  role         Role                @default(STAFF)
+  active       Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  orders       Order[]
+  snapshots    InventorySnapshot[]
+}
+
+model Product {
+  id         String      @id @default(uuid())
+  name       String
+  type       ProductType
+  size       ProductSize
+  basePrice  Decimal     @db.Decimal(10, 2)
+  imageUrl   String?
+  active     Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  orderItems OrderItem[]
+}
+
+model Flavor {
+  id             String          @id @default(uuid())
+  name           String
+  priceModifier  Decimal         @db.Decimal(10, 2) @default(0)
+  imageUrl       String?
+  active         Boolean         @default(true)
+  orderItems     OrderItem[]
+  inventoryLines InventoryLine[]
+}
+
+model Topping {
+  id                String             @id @default(uuid())
+  name              String
+  unitPrice         Decimal            @db.Decimal(10, 2)
+  imageUrl          String?
+  active            Boolean            @default(true)
+  orderItemToppings OrderItemTopping[]
+  inventoryLines    InventoryLine[]
+}
+
+model Coupon {
+  id            String       @id @default(uuid())
+  code          String       @unique
+  discountType  DiscountType
+  discountValue Decimal      @db.Decimal(10, 2)
+  maxUses       Int?
+  usesCount     Int          @default(0)
+  validFrom     DateTime?
+  validUntil    DateTime?
+  active        Boolean      @default(true)
+  orders        Order[]
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  staffId        String
+  staff          User        @relation(fields: [staffId], references: [id])
+  couponId       String?
+  coupon         Coupon?     @relation(fields: [couponId], references: [id])
+  createdAt      DateTime    @default(now())
+  subtotal       Decimal     @db.Decimal(10, 2)
+  discountAmount Decimal     @db.Decimal(10, 2) @default(0)
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  notes          String?
+  items          OrderItem[]
+}
+
+model OrderItem {
+  id        String             @id @default(uuid())
+  orderId   String
+  order     Order              @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product            @relation(fields: [productId], references: [id])
+  flavorId  String
+  flavor    Flavor             @relation(fields: [flavorId], references: [id])
+  itemTotal Decimal            @db.Decimal(10, 2)
+  toppings  OrderItemTopping[]
+}
+
+model OrderItemTopping {
+  id          String    @id @default(uuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  toppingId   String
+  topping     Topping   @relation(fields: [toppingId], references: [id])
+  quantity    Int
+}
+
+model InventorySnapshot {
+  id      String          @id @default(uuid())
+  takenBy String
+  user    User            @relation(fields: [takenBy], references: [id])
+  takenAt DateTime        @default(now())
+  period  SnapshotPeriod
+  notes   String?
+  lines   InventoryLine[]
+}
+
+model InventoryLine {
+  id         String            @id @default(uuid())
+  snapshotId String
+  snapshot   InventorySnapshot @relation(fields: [snapshotId], references: [id])
+  flavorId   String?
+  flavor     Flavor?           @relation(fields: [flavorId], references: [id])
+  toppingId  String?
+  topping    Topping?          @relation(fields: [toppingId], references: [id])
+  quantity   Decimal           @db.Decimal(10, 2)
+}
