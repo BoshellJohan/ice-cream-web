@@ -1,0 +1,58 @@
+@if (showNav) {
+  <nav class="bg-gray-900 border-b border-gray-800 px-5 py-3 flex items-center gap-2 flex-wrap">
+
+    <!-- Always visible -->
+    <a routerLink="/orders/new"
+       routerLinkActive="bg-purple-600 text-white"
+       [routerLinkActiveOptions]="{ exact: true }"
+       class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+      Nuevo pedido
+    </a>
+    <a routerLink="/orders/history"
+       routerLinkActive="bg-purple-600 text-white"
+       class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+      Historial
+    </a>
+
+    <!-- Admin only -->
+    @if (auth.isAdmin()) {
+      <a routerLink="/inventory"
+         routerLinkActive="bg-purple-600 text-white"
+         class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+        Inventario
+      </a>
+      <a routerLink="/dashboard"
+         routerLinkActive="bg-purple-600 text-white"
+         class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+        Dashboard
+      </a>
+      <a routerLink="/catalog"
+         routerLinkActive="bg-purple-600 text-white"
+         class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+        Catálogo
+      </a>
+      <a routerLink="/coupons"
+         routerLinkActive="bg-purple-600 text-white"
+         class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+        Cupones
+      </a>
+      <a routerLink="/users"
+         routerLinkActive="bg-purple-600 text-white"
+         class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+        Usuarios
+      </a>
+    }
+
+    <!-- Right side: user + logout -->
+    <div class="ml-auto flex items-center gap-3">
+      <span class="text-gray-400 text-sm">{{ userName }}</span>
+      <button (click)="auth.logout()"
+              class="px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">
+        Salir
+      </button>
+    </div>
+
+  </nav>
+}
+
+<router-outlet />
