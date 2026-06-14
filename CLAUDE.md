@@ -100,4 +100,4 @@ One existing user: `Admin` / `admin@helados.com` / password: `admin` / role: `AD
 | 1 | main (merged) | ✅ Done | Foundation, Auth, Login UI |
 | 2 | `plan-2-catalog` | ✅ Done | Catalog CRUD, Users, Coupons, Cloudinary, Angular pages |
 | 3 | `plan-3-orders` | ✅ Done | Visual 5-step order flow, NestJS OrdersModule, order history |
-| 4 | TBD | Not started | Inventory snapshots, analytics dashboard |
+| 4 | `plan-4-inventory` | ✅ Done | Inventory snapshots (upsert), analytics dashboard |
