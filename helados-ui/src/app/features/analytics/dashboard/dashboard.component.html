@@ -1,0 +1,126 @@
+<div class="min-h-screen bg-gray-950 p-5 space-y-6">
+
+  <!-- Header + filters -->
+  <div class="flex flex-wrap items-center gap-3">
+    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+    <div class="ml-auto flex items-center gap-2 flex-wrap">
+      <button (click)="setLastDays(7)"  class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-2 rounded-lg touch-manipulation">7 días</button>
+      <button (click)="setLastDays(14)" class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-2 rounded-lg touch-manipulation">14 días</button>
+      <button (click)="setLastDays(30)" class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-2 rounded-lg touch-manipulation">30 días</button>
+      <input [(ngModel)]="fromDate" type="date" class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+      <span class="text-gray-400 text-sm">—</span>
+      <input [(ngModel)]="toDate"   type="date" class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+      <button (click)="load()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg font-medium touch-manipulation">Buscar</button>
+    </div>
+  </div>
+
+  @if (loading) {
+    <p class="text-gray-400">Cargando...</p>
+  } @else if (error) {
+    <p class="text-red-400">{{ error }}</p>
+  } @else if (summary) {
+
+    <!-- KPI cards -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="bg-gray-900 rounded-2xl p-5">
+        <p class="text-gray-400 text-sm">Ingresos totales</p>
+        <p class="text-3xl font-bold text-white mt-1">{{ formatPrice(summary.totalRevenue) }}</p>
+      </div>
+      <div class="bg-gray-900 rounded-2xl p-5">
+        <p class="text-gray-400 text-sm">Pedidos</p>
+        <p class="text-3xl font-bold text-white mt-1">{{ summary.totalOrders }}</p>
+      </div>
+      <div class="bg-gray-900 rounded-2xl p-5">
+        <p class="text-gray-400 text-sm">Con cupón</p>
+        <p class="text-3xl font-bold text-white mt-1">{{ summary.ordersWithCoupon }}</p>
+        @if (summary.totalOrders > 0) {
+          <p class="text-gray-500 text-xs mt-1">
+            {{ ((summary.ordersWithCoupon / summary.totalOrders) * 100).toFixed(0) }}% de los pedidos
+          </p>
+        }
+      </div>
+    </div>
+
+    <!-- Daily revenue -->
+    @if (summary.dailyRevenue.length > 0) {
+      <div class="bg-gray-900 rounded-2xl p-5">
+        <h2 class="text-white font-semibold mb-4">Ingresos por día</h2>
+        <div class="space-y-2">
+          @for (day of summary.dailyRevenue; track day.date) {
+            <div class="flex items-center gap-4">
+              <span class="text-gray-400 text-sm w-16 shrink-0">{{ day.date }}</span>
+              <div class="flex-1 bg-gray-800 rounded-full h-5 overflow-hidden">
+                <div
+                  class="h-full bg-purple-600 rounded-full"
+                  [style.width.%]="(day.total / summary.totalRevenue) * 100"
+                ></div>
+              </div>
+              <span class="text-white text-sm font-medium w-20 text-right shrink-0">{{ formatPrice(day.total) }}</span>
+              <span class="text-gray-500 text-xs w-20 text-right shrink-0">{{ day.count }} pedido{{ day.count !== 1 ? 's' : '' }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="bg-gray-900 rounded-2xl p-5 text-center">
+        <p class="text-gray-500">No hay pedidos en este período.</p>
+      </div>
+    }
+
+    <!-- Top items -->
+    @if (topItems) {
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+        <div class="bg-gray-900 rounded-2xl p-5">
+          <h2 class="text-white font-semibold mb-4">Sabores más pedidos</h2>
+          @if (topItems.topFlavors.length === 0) {
+            <p class="text-gray-500 text-sm">Sin datos</p>
+          } @else {
+            <div class="space-y-3">
+              @for (item of topItems.topFlavors; track item.name) {
+                <div class="space-y-1">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-white">{{ item.name }}</span>
+                    <span class="text-gray-400">{{ item.count }} pedido{{ item.count !== 1 ? 's' : '' }}</span>
+                  </div>
+                  <div class="bg-gray-800 rounded-full h-2">
+                    <div
+                      class="h-full bg-purple-500 rounded-full"
+                      [style.width.%]="(item.count / maxFlavorCount()) * 100"
+                    ></div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="bg-gray-900 rounded-2xl p-5">
+          <h2 class="text-white font-semibold mb-4">Toppings más pedidos</h2>
+          @if (topItems.topToppings.length === 0) {
+            <p class="text-gray-500 text-sm">Sin datos</p>
+          } @else {
+            <div class="space-y-3">
+              @for (item of topItems.topToppings; track item.name) {
+                <div class="space-y-1">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-white">{{ item.name }}</span>
+                    <span class="text-gray-400">{{ item.quantity }} unidades</span>
+                  </div>
+                  <div class="bg-gray-800 rounded-full h-2">
+                    <div
+                      class="h-full bg-purple-500 rounded-full"
+                      [style.width.%]="(item.quantity / maxToppingQty()) * 100"
+                    ></div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+      </div>
+    }
+
+  }
+</div>
