@@ -76,10 +76,20 @@ export class OrdersService {
     for (const item of dto.items) {
       const product     = productMap.get(item.productId)!;
       const flavor      = item.flavorId ? flavorMap.get(item.flavorId) : undefined;
-      const itemTotal   = Number(product.basePrice) + (flavor ? Number(flavor.priceModifier) : 0);
+      const itemTotal = Number(product.basePrice) + (flavor ? Number(flavor.priceModifier) : 0);
+
+      let remainingFree = product.includedToppingQty ?? 0;
       const toppingCost = item.toppings.reduce((sum, t) => {
-        return sum + Number(toppingMap.get(t.toppingId)!.unitPrice) * t.quantity;
+        const topping = toppingMap.get(t.toppingId)!;
+        if (topping.type === product.includedToppingType && remainingFree > 0) {
+          const freeQty    = Math.min(t.quantity, remainingFree);
+          const chargedQty = t.quantity - freeQty;
+          remainingFree -= freeQty;
+          return sum + chargedQty * Number(topping.unitPrice);
+        }
+        return sum + t.quantity * Number(topping.unitPrice);
       }, 0);
+
       itemTotals.push(itemTotal);
       subtotal += itemTotal + toppingCost;
     }
@@ -116,8 +126,9 @@ export class OrdersService {
               itemTotal: itemTotals[idx],
               toppings: {
                 create: item.toppings.map(t => ({
-                  toppingId: t.toppingId,
-                  quantity:  t.quantity,
+                  toppingId:       t.toppingId,
+                  quantity:        t.quantity,
+                  unitPriceAtSale: toppingMap.get(t.toppingId)!.unitPrice,
                 })),
               },
             })),

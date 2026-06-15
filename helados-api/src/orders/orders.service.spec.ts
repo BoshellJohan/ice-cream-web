@@ -17,8 +17,14 @@ const mockCouponsService = { validate: jest.fn() };
 
 const product  = { id: 'p1', name: 'Small Cone', basePrice: 5,   active: true, directSale: false };
 const flavor   = { id: 'f1', name: 'Chocolate',  priceModifier: 1, active: true };
-const topping1 = { id: 't1', name: 'Oreo',       unitPrice: 0.5, active: true };
-const topping2 = { id: 't2', name: 'Sprinkles',  unitPrice: 1,   active: true };
+const topping1 = { id: 't1', name: 'Oreo',       unitPrice: 0.5, active: true, type: 'NORMAL' };
+const topping2 = { id: 't2', name: 'Sprinkles',  unitPrice: 1,   active: true, type: 'NORMAL' };
+const topping3 = { id: 't3', name: 'Caramel',    unitPrice: 2,   active: true, type: 'PREMIUM' };
+const productWithAllowance = {
+  id: 'p2', name: 'Container', basePrice: 7, active: true, directSale: false,
+  includedToppingType: 'NORMAL', includedToppingQty: 2,
+};
+const flavor2 = { id: 'f2', name: 'Vanilla', priceModifier: 0, active: true };
 
 // 1 item: itemTotal = 5+1 = 6; toppings = 0.5×2 + 1×1 = 2; subtotal = 8
 const dto = {
@@ -140,6 +146,72 @@ describe('OrdersService', () => {
       setupMocks();
       await service.create('staff1', dto);
       expect(mockPrisma.coupon.update).not.toHaveBeenCalled();
+    });
+
+    it('toppings within NORMAL allowance are free', async () => {
+      mockPrisma.product.findMany.mockResolvedValue([productWithAllowance]);
+      mockPrisma.flavor.findMany.mockResolvedValue([flavor2]);
+      mockPrisma.topping.findMany.mockResolvedValue([topping1, topping2]);
+      mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
+      mockPrisma.order.create.mockResolvedValue(fakeOrder);
+
+      await service.create('staff1', {
+        paymentMethod: 'QR',
+        items: [{ productId: 'p2', flavorId: 'f2', toppings: [{ toppingId: 't1', quantity: 1 }, { toppingId: 't2', quantity: 1 }] }],
+      });
+
+      // basePrice=7, priceModifier=0, 2 NORMAL included, 2 NORMAL selected → toppingCost=0 → subtotal=7
+      expect(mockPrisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ subtotal: 7, totalAmount: 7 }) }),
+      );
+    });
+
+    it('toppings beyond NORMAL allowance are charged', async () => {
+      mockPrisma.product.findMany.mockResolvedValue([productWithAllowance]);
+      mockPrisma.flavor.findMany.mockResolvedValue([flavor2]);
+      mockPrisma.topping.findMany.mockResolvedValue([topping1, topping2]);
+      mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
+      mockPrisma.order.create.mockResolvedValue(fakeOrder);
+
+      await service.create('staff1', {
+        paymentMethod: 'QR',
+        items: [{ productId: 'p2', flavorId: 'f2', toppings: [{ toppingId: 't1', quantity: 2 }, { toppingId: 't2', quantity: 1 }] }],
+      });
+
+      // t1 qty=2: consumes 2 free slots (remainingFree → 0); t2 qty=1: charged 1×1.00=1.00
+      // subtotal = 7 + 1 = 8
+      expect(mockPrisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ subtotal: 8, totalAmount: 8 }) }),
+      );
+    });
+
+    it('PREMIUM toppings are charged when product includes NORMAL', async () => {
+      mockPrisma.product.findMany.mockResolvedValue([productWithAllowance]);
+      mockPrisma.flavor.findMany.mockResolvedValue([flavor2]);
+      mockPrisma.topping.findMany.mockResolvedValue([topping3]);
+      mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
+      mockPrisma.order.create.mockResolvedValue(fakeOrder);
+
+      await service.create('staff1', {
+        paymentMethod: 'QR',
+        items: [{ productId: 'p2', flavorId: 'f2', toppings: [{ toppingId: 't3', quantity: 1 }] }],
+      });
+
+      // PREMIUM does not consume NORMAL allowance → charged 1×2.00=2.00 → subtotal=9
+      expect(mockPrisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ subtotal: 9, totalAmount: 9 }) }),
+      );
+    });
+
+    it('stores unitPriceAtSale on each OrderItemTopping at time of order creation', async () => {
+      setupMocks();
+      await service.create('staff1', dto);
+      const createCall = mockPrisma.order.create.mock.calls[0][0];
+      const toppingsCreated = createCall.data.items.create[0].toppings.create;
+      expect(toppingsCreated).toEqual([
+        { toppingId: 't1', quantity: 2, unitPriceAtSale: 0.5 },
+        { toppingId: 't2', quantity: 1, unitPriceAtSale: 1 },
+      ]);
     });
   });
 
