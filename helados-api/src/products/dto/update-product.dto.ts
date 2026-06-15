@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min, ValidateIf, IsDefined } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateProductDto {
@@ -8,7 +8,7 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsEnum(['CONE', 'CONTAINER', 'CUP', 'BOWL', 'DRINK'])
-  type?: 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL';
+  type?: 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL' | 'DRINK';
 
   @IsOptional()
   @IsEnum(['SMALL', 'MEDIUM', 'LARGE'])
@@ -27,4 +27,16 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   directSale?: boolean;
+
+  // Both null → clears the allowance. One set without the other → 400.
+  @ValidateIf(o => o.includedToppingQty != null)
+  @IsDefined()
+  @IsEnum(['NORMAL', 'PREMIUM'])
+  includedToppingType?: 'NORMAL' | 'PREMIUM' | null;
+
+  @ValidateIf(o => o.includedToppingType != null)
+  @IsDefined()
+  @IsInt()
+  @Min(1)
+  includedToppingQty?: number | null;
 }

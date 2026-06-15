@@ -63,4 +63,26 @@ describe('ProductsService', () => {
     mockPrisma.product.findUnique.mockResolvedValue(null);
     await expect(service.toggleActive('bad')).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('creates product with included topping allowance', async () => {
+    const dto = {
+      name: 'Container', type: 'CONTAINER' as const, size: 'MEDIUM' as const,
+      basePrice: 7, includedToppingType: 'NORMAL' as const, includedToppingQty: 2,
+    };
+    mockPrisma.product.create.mockResolvedValue({
+      id: 'p2', ...dto, active: true, directSale: false, imageUrl: null, createdAt: new Date(),
+    });
+    await service.create(dto);
+    expect(mockPrisma.product.create).toHaveBeenCalledWith({ data: dto });
+  });
+
+  it('creates product with no topping allowance', async () => {
+    const dto = { name: 'Small Cone', type: 'CONE' as const, size: 'SMALL' as const, basePrice: 2.5 };
+    mockPrisma.product.create.mockResolvedValue({
+      id: 'p3', ...dto, active: true, directSale: false, imageUrl: null,
+      includedToppingType: null, includedToppingQty: null, createdAt: new Date(),
+    });
+    await service.create(dto);
+    expect(mockPrisma.product.create).toHaveBeenCalledWith({ data: dto });
+  });
 });
