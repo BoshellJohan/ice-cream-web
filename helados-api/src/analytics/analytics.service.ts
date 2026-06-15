@@ -81,8 +81,8 @@ export class AnalyticsService {
         : Promise.resolve([]),
     ]);
 
-    const flavorMap  = new Map(flavors.map(f => [f.id, f.name]));
-    const toppingMap = new Map(toppings.map(t => [t.id, t.name]));
+    const flavorMap  = new Map(flavors.map(f  => [f.id, f.name]  as const));
+    const toppingMap = new Map(toppings.map(t => [t.id, t.name] as const));
 
     return {
       topFlavors:  flavorGroups.map(g  => ({ name: flavorMap.get(g.flavorId)   ?? g.flavorId,  count:    g._count.id })),

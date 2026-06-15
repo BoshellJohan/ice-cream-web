@@ -9,11 +9,11 @@ export enum SnapshotPeriod {
 export class InventoryLineDto {
   @IsOptional()
   @IsUUID()
-  flavorId?: string;
+  productId?: string;
 
   @IsOptional()
-  @IsUUID()
-  toppingId?: string;
+  @IsString()
+  label?: string;
 
   @IsNumber()
   @Min(0)

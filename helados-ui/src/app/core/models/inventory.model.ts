@@ -2,11 +2,18 @@ export type SnapshotPeriod = 'MORNING' | 'NIGHT';
 
 export interface InventoryLine {
   id: string;
-  flavorId: string | null;
-  flavor: { id: string; name: string } | null;
-  toppingId: string | null;
-  topping: { id: string; name: string } | null;
+  productId: string | null;
+  product: { id: string; name: string; type: string } | null;
+  label: string | null;
   quantity: number;
+}
+
+export interface InventoryEdit {
+  id: string;
+  editedBy: string;
+  user: { id: string; name: string };
+  editedAt: string;
+  reason: string | null;
 }
 
 export interface InventorySnapshot {
@@ -17,16 +24,28 @@ export interface InventorySnapshot {
   period: SnapshotPeriod;
   notes: string | null;
   lines: InventoryLine[];
+  edits: InventoryEdit[];
+}
+
+export interface InventorySnapshotSummary {
+  id: string;
+  takenBy: string;
+  user: { id: string; name: string };
+  takenAt: string;
+  period: SnapshotPeriod;
+  notes: string | null;
+  lines: { id: string }[];
+  edits: { id: string }[];
 }
 
 export interface SnapshotPair {
   morning: InventorySnapshot | null;
-  night: InventorySnapshot | null;
+  night:   InventorySnapshot | null;
 }
 
 export interface InventoryLinePayload {
-  flavorId?: string;
-  toppingId?: string;
+  productId?: string;
+  label?: string;
   quantity: number;
 }
 
@@ -37,9 +56,8 @@ export interface CreateSnapshotPayload {
   notes?: string;
 }
 
-export interface DeltaLine {
-  label: string;
-  morning: number;
-  night: number;
-  consumed: number; // morning - night (positive = consumed, negative = restocked)
+export interface UpdateSnapshotPayload {
+  lines: InventoryLinePayload[];
+  notes?: string;
+  reason?: string;
 }

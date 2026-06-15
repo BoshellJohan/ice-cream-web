@@ -1,15 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSnapshotDto } from './dto/create-snapshot.dto';
+import { UpdateSnapshotDto } from './dto/update-snapshot.dto';
 
 const snapshotInclude = {
   lines: {
     include: {
-      flavor:  { select: { id: true, name: true } },
-      topping: { select: { id: true, name: true } },
+      product: { select: { id: true, name: true, type: true } },
     },
+    orderBy: { label: 'asc' as const },
   },
-  user: { select: { id: true, name: true } },
+  user:  { select: { id: true, name: true } },
+  edits: {
+    include: { user: { select: { id: true, name: true } } },
+    orderBy: { editedAt: 'desc' as const },
+  },
 } as const;
 
 @Injectable()
@@ -23,14 +28,12 @@ export class InventoryService {
 
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.inventorySnapshot.findFirst({
-        where: {
-          period:  dto.period,
-          takenAt: { gte: dayStart, lt: dayEnd },
-        },
+        where: { period: dto.period, takenAt: { gte: dayStart, lt: dayEnd } },
       });
 
       if (existing) {
         await tx.inventoryLine.deleteMany({ where: { snapshotId: existing.id } });
+        await tx.inventoryEdit.deleteMany({ where: { snapshotId: existing.id } });
         await tx.inventorySnapshot.delete({ where: { id: existing.id } });
       }
 
@@ -41,14 +44,63 @@ export class InventoryService {
           notes:   dto.notes,
           lines: {
             create: dto.lines.map(l => ({
-              flavorId:  l.flavorId,
-              toppingId: l.toppingId,
+              productId: l.productId,
+              label:     l.label,
               quantity:  l.quantity,
             })),
           },
         },
         include: snapshotInclude,
       });
+    });
+  }
+
+  async findAll() {
+    return this.prisma.inventorySnapshot.findMany({
+      orderBy: { takenAt: 'desc' },
+      include: {
+        user:  { select: { id: true, name: true } },
+        edits: { select: { id: true } },
+        lines: { select: { id: true } },
+      },
+    });
+  }
+
+  async findOne(id: string) {
+    const snapshot = await this.prisma.inventorySnapshot.findUnique({
+      where: { id },
+      include: snapshotInclude,
+    });
+    if (!snapshot) throw new NotFoundException(`Inventario ${id} no encontrado`);
+    return snapshot;
+  }
+
+  async updateSnapshot(id: string, staffId: string, dto: UpdateSnapshotDto) {
+    const snapshot = await this.prisma.inventorySnapshot.findUnique({ where: { id } });
+    if (!snapshot) throw new NotFoundException(`Inventario ${id} no encontrado`);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.inventoryLine.deleteMany({ where: { snapshotId: id } });
+
+      await tx.inventorySnapshot.update({
+        where: { id },
+        data: {
+          notes: dto.notes,
+          lines: {
+            create: dto.lines.map(l => ({
+              productId: l.productId,
+              label:     l.label,
+              quantity:  l.quantity,
+            })),
+          },
+        },
+      });
+
+      await tx.inventoryEdit.create({
+        data: { snapshotId: id, editedBy: staffId, reason: dto.reason },
+      });
+
+      return tx.inventorySnapshot.findUnique({ where: { id }, include: snapshotInclude });
     });
   }
 

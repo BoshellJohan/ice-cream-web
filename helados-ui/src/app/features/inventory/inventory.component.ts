@@ -1,15 +1,24 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
-import { FlavorService } from '../../core/services/flavor.service';
-import { ToppingService } from '../../core/services/topping.service';
+import { ProductService } from '../../core/services/product.service';
 import { InventoryApiService } from '../../core/services/inventory.service';
-import { Flavor } from '../../core/models/flavor.model';
-import { Topping } from '../../core/models/topping.model';
-import { DeltaLine, InventorySnapshot, SnapshotPeriod } from '../../core/models/inventory.model';
+import { Product } from '../../core/models/product.model';
+import {
+  InventorySnapshot, InventorySnapshotSummary,
+  InventoryLinePayload, SnapshotPeriod,
+} from '../../core/models/inventory.model';
 
-interface QtyRow { id: string; label: string; qty: number; }
+const WATER_LABEL = 'Agua';
+
+interface QtyRow {
+  productId?: string;
+  label?: string;
+  display: string;
+  qty: number;
+}
+
+type PanelMode = 'none' | 'new' | 'view' | 'edit';
 
 @Component({
   selector: 'app-inventory',
@@ -18,137 +27,165 @@ interface QtyRow { id: string; label: string; qty: number; }
   templateUrl: './inventory.component.html',
 })
 export class InventoryComponent implements OnInit {
-  private flavorSvc    = inject(FlavorService);
-  private toppingSvc   = inject(ToppingService);
+  private productSvc   = inject(ProductService);
   private inventorySvc = inject(InventoryApiService);
 
-  selectedDate   = new Date().toISOString().split('T')[0];
-  selectedPeriod: SnapshotPeriod = 'MORNING';
+  history: InventorySnapshotSummary[] = [];
+  loadingHistory = true;
+  products: Product[] = [];
 
-  flavors:  Flavor[]  = [];
-  toppings: Topping[] = [];
+  panelMode: PanelMode = 'none';
+  selectedSnapshot: InventorySnapshot | null = null;
+  loadingDetail = false;
 
-  flavorQties:  QtyRow[] = [];
-  toppingQties: QtyRow[] = [];
+  // New-snapshot form
+  newDate    = new Date().toISOString().split('T')[0];
+  newPeriod: SnapshotPeriod = 'MORNING';
+  rows: QtyRow[] = [];
+  newNotes   = '';
+  saving     = false;
+  saveError  = '';
 
-  notes       = '';
-  saving      = false;
-  saveSuccess = false;
-  saveError   = '';
-
-  morningSnapshot: InventorySnapshot | null = null;
-  nightSnapshot:   InventorySnapshot | null = null;
-  delta: DeltaLine[] = [];
-
-  loadingCatalog   = true;
-  loadingSnapshots = false;
+  // Edit form
+  editRows: QtyRow[] = [];
+  editNotes  = '';
+  editReason = '';
+  editing    = false;
+  editError  = '';
 
   ngOnInit() {
-    forkJoin({
-      flavors:  this.flavorSvc.getAll(),
-      toppings: this.toppingSvc.getAll(),
-    }).subscribe({
-      next: ({ flavors, toppings }) => {
-        this.flavors  = flavors.filter(f => f.active);
-        this.toppings = toppings.filter(t => t.active);
-        this.loadingCatalog = false;
-        this.initForm();
-        this.loadSnapshots();
+    this.productSvc.getAll().subscribe({
+      next: (products) => {
+        this.products = products
+          .filter(p => p.active && (p.type === 'CONE' || p.type === 'CUP'))
+          .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+        this.loadHistory();
       },
     });
   }
 
-  private initForm(snapshot?: InventorySnapshot | null) {
-    const getFlavorQty  = (id: string) => snapshot?.lines.find(l => l.flavorId  === id)?.quantity ?? 0;
-    const getToppingQty = (id: string) => snapshot?.lines.find(l => l.toppingId === id)?.quantity ?? 0;
-
-    this.flavorQties  = this.flavors.map(f  => ({ id: f.id, label: f.name,  qty: Number(getFlavorQty(f.id))   }));
-    this.toppingQties = this.toppings.map(t => ({ id: t.id, label: t.name,  qty: Number(getToppingQty(t.id))  }));
-    this.notes = snapshot?.notes ?? '';
-  }
-
-  selectPeriod(period: SnapshotPeriod) {
-    this.selectedPeriod = period;
-    const snapshot = period === 'MORNING' ? this.morningSnapshot : this.nightSnapshot;
-    this.initForm(snapshot);
-  }
-
-  loadSnapshots() {
-    this.loadingSnapshots = true;
-    this.inventorySvc.getSnapshots(this.selectedDate).subscribe({
-      next: ({ morning, night }) => {
-        this.morningSnapshot  = morning;
-        this.nightSnapshot    = night;
-        this.loadingSnapshots = false;
-        const snapshot = this.selectedPeriod === 'MORNING' ? morning : night;
-        this.initForm(snapshot);
-        this.buildDelta();
-      },
-      error: () => { this.loadingSnapshots = false; },
+  loadHistory() {
+    this.loadingHistory = true;
+    this.inventorySvc.getAll().subscribe({
+      next: (list) => { this.history = list; this.loadingHistory = false; },
+      error: () => { this.loadingHistory = false; },
     });
   }
 
-  onDateChange() {
-    this.saveSuccess = false;
-    this.saveError   = '';
-    this.loadSnapshots();
+  periodLabel(p: SnapshotPeriod) { return p === 'MORNING' ? 'Mañana' : 'Noche'; }
+
+  openView(row: InventorySnapshotSummary) {
+    this.panelMode     = 'view';
+    this.loadingDetail = true;
+    this.selectedSnapshot = null;
+    this.inventorySvc.getOne(row.id).subscribe({
+      next: (s) => { this.selectedSnapshot = s; this.loadingDetail = false; },
+      error: () => { this.loadingDetail = false; },
+    });
   }
 
-  private buildDelta() {
-    if (!this.morningSnapshot || !this.nightSnapshot) {
-      this.delta = [];
-      return;
-    }
+  closePanel() {
+    this.panelMode = 'none';
+    this.selectedSnapshot = null;
+    this.saveError = '';
+    this.editError = '';
+  }
 
-    const lines: DeltaLine[] = [];
+  openNew() {
+    this.panelMode = 'new';
+    this.newDate   = new Date().toISOString().split('T')[0];
+    this.newPeriod = 'MORNING';
+    this.newNotes  = '';
+    this.saveError = '';
+    this.buildRows(null);
+  }
 
-    for (const flavor of this.flavors) {
-      const m = Number(this.morningSnapshot.lines.find(l => l.flavorId  === flavor.id)?.quantity ?? 0);
-      const n = Number(this.nightSnapshot.lines.find(l   => l.flavorId  === flavor.id)?.quantity ?? 0);
-      if (m > 0 || n > 0) lines.push({ label: flavor.name,  morning: m, night: n, consumed: m - n });
-    }
-
-    for (const topping of this.toppings) {
-      const m = Number(this.morningSnapshot.lines.find(l => l.toppingId === topping.id)?.quantity ?? 0);
-      const n = Number(this.nightSnapshot.lines.find(l   => l.toppingId === topping.id)?.quantity ?? 0);
-      if (m > 0 || n > 0) lines.push({ label: topping.name, morning: m, night: n, consumed: m - n });
-    }
-
-    this.delta = lines;
+  private buildRows(snapshot: InventorySnapshot | null) {
+    this.rows = [
+      ...this.products.map(p => ({
+        productId: p.id,
+        display:   p.name,
+        qty: Number(snapshot?.lines.find(l => l.productId === p.id)?.quantity ?? 0),
+      })),
+      {
+        label:   WATER_LABEL,
+        display: WATER_LABEL,
+        qty: Number(snapshot?.lines.find(l => l.label === WATER_LABEL)?.quantity ?? 0),
+      },
+    ];
   }
 
   inc(row: QtyRow, step: number) { row.qty = Math.round((row.qty + step) * 10) / 10; }
   dec(row: QtyRow, step: number) { row.qty = Math.max(0, Math.round((row.qty - step) * 10) / 10); }
 
-  save() {
-    this.saving      = true;
-    this.saveSuccess = false;
-    this.saveError   = '';
-
-    const payload = {
-      period: this.selectedPeriod,
-      date:   this.selectedDate,
-      notes:  this.notes || undefined,
-      lines: [
-        ...this.flavorQties.map(r  => ({ flavorId:  r.id, quantity: r.qty })),
-        ...this.toppingQties.map(r => ({ toppingId: r.id, quantity: r.qty })),
-      ],
-    };
-
-    this.inventorySvc.upsert(payload).subscribe({
-      next: (snapshot) => {
-        this.saving      = false;
-        this.saveSuccess = true;
-        if (this.selectedPeriod === 'MORNING') this.morningSnapshot = snapshot;
-        else                                   this.nightSnapshot   = snapshot;
-        this.buildDelta();
-      },
-      error: (e) => {
-        this.saving    = false;
-        this.saveError = e?.error?.message ?? 'Error al guardar inventario';
-      },
+  saveNew() {
+    this.saving    = true;
+    this.saveError = '';
+    const lines: InventoryLinePayload[] = this.rows.map(r => ({
+      productId: r.productId,
+      label:     r.label,
+      quantity:  r.qty,
+    }));
+    this.inventorySvc.upsert({
+      period: this.newPeriod,
+      date:   this.newDate,
+      lines,
+      notes:  this.newNotes || undefined,
+    }).subscribe({
+      next: () => { this.saving = false; this.closePanel(); this.loadHistory(); },
+      error: (e) => { this.saving = false; this.saveError = e?.error?.message ?? 'Error al guardar'; },
     });
   }
 
-  formatQty(n: number) { return Number(n).toFixed(1); }
+  startEdit() {
+    if (!this.selectedSnapshot) return;
+    this.editRows = [
+      ...this.products.map(p => ({
+        productId: p.id,
+        display:   p.name,
+        qty: Number(this.selectedSnapshot!.lines.find(l => l.productId === p.id)?.quantity ?? 0),
+      })),
+      {
+        label:   WATER_LABEL,
+        display: WATER_LABEL,
+        qty: Number(this.selectedSnapshot!.lines.find(l => l.label === WATER_LABEL)?.quantity ?? 0),
+      },
+    ];
+    this.editNotes  = this.selectedSnapshot.notes ?? '';
+    this.editReason = '';
+    this.editError  = '';
+    this.panelMode  = 'edit';
+  }
+
+  cancelEdit() { this.panelMode = 'view'; }
+
+  saveEdit() {
+    if (!this.selectedSnapshot) return;
+    this.editing   = true;
+    this.editError = '';
+    const lines: InventoryLinePayload[] = this.editRows.map(r => ({
+      productId: r.productId,
+      label:     r.label,
+      quantity:  r.qty,
+    }));
+    this.inventorySvc.update(this.selectedSnapshot.id, {
+      lines,
+      notes:  this.editNotes  || undefined,
+      reason: this.editReason || undefined,
+    }).subscribe({
+      next: (s) => {
+        this.editing          = false;
+        this.selectedSnapshot = s;
+        this.panelMode        = 'view';
+        this.loadHistory();
+      },
+      error: (e) => { this.editing = false; this.editError = e?.error?.message ?? 'Error al guardar'; },
+    });
+  }
+
+  lineName(line: { product: { name: string } | null; label: string | null }): string {
+    return line.product?.name ?? line.label ?? '—';
+  }
+
+  formatQty(n: number | string) { return Number(n).toFixed(1); }
 }

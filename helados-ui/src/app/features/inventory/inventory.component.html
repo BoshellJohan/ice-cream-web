@@ -1,170 +1,251 @@
-<div class="min-h-screen bg-gray-950 p-5 space-y-6">
+<div class="min-h-screen bg-gray-950 p-5 space-y-5">
 
-  <!-- Header + date picker -->
-  <div class="flex flex-wrap items-center gap-4">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold text-white">Inventario</h1>
-    <div class="ml-auto flex items-center gap-2">
-      <label class="text-gray-400 text-sm">Fecha</label>
-      <input
-        [(ngModel)]="selectedDate"
-        (change)="onDateChange()"
-        type="date"
-        class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-      />
-    </div>
+    <button (click)="openNew()"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-semibold touch-manipulation">
+      + Nueva lectura
+    </button>
   </div>
 
-  @if (loadingCatalog) {
-    <p class="text-gray-400">Cargando catálogo...</p>
-  } @else {
-
-    <!-- Period tabs -->
-    <div class="flex gap-2">
-      <button
-        (click)="selectPeriod('MORNING')"
-        class="px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors touch-manipulation"
-        [class.bg-purple-600]="selectedPeriod === 'MORNING'"
-        [class.text-white]="selectedPeriod === 'MORNING'"
-        [class.bg-gray-800]="selectedPeriod !== 'MORNING'"
-        [class.text-gray-400]="selectedPeriod !== 'MORNING'"
-      >
-        Inventario Mañana
-        @if (morningSnapshot) {
-          <span class="ml-2 text-xs opacity-75">{{ morningSnapshot.takenAt | date:'HH:mm' }}</span>
-        }
-      </button>
-      <button
-        (click)="selectPeriod('NIGHT')"
-        class="px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors touch-manipulation"
-        [class.bg-purple-600]="selectedPeriod === 'NIGHT'"
-        [class.text-white]="selectedPeriod === 'NIGHT'"
-        [class.bg-gray-800]="selectedPeriod !== 'NIGHT'"
-        [class.text-gray-400]="selectedPeriod !== 'NIGHT'"
-      >
-        Inventario Noche
-        @if (nightSnapshot) {
-          <span class="ml-2 text-xs opacity-75">{{ nightSnapshot.takenAt | date:'HH:mm' }}</span>
-        }
-      </button>
+  <!-- History table -->
+  @if (loadingHistory) {
+    <p class="text-gray-400">Cargando...</p>
+  } @else if (history.length === 0) {
+    <div class="bg-gray-900 rounded-2xl p-8 text-center">
+      <p class="text-gray-400">No hay lecturas de inventario aún.</p>
+      <p class="text-gray-500 text-sm mt-1">Pulsa "Nueva lectura" para empezar.</p>
     </div>
+  } @else {
+    <div class="bg-gray-900 rounded-2xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-gray-400 text-left border-b border-gray-800">
+            <th class="px-5 py-3 font-medium">Fecha</th>
+            <th class="px-5 py-3 font-medium">Periodo</th>
+            <th class="px-5 py-3 font-medium">Registrado por</th>
+            <th class="px-5 py-3 font-medium text-center">Ítems</th>
+            <th class="px-5 py-3 font-medium text-center">Estado</th>
+            <th class="px-5 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          @for (row of history; track row.id) {
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-white">{{ row.takenAt | date:'dd/MM/yyyy' }}</td>
+              <td class="px-5 py-3 text-gray-300">{{ periodLabel(row.period) }}</td>
+              <td class="px-5 py-3 text-gray-300">{{ row.user.name }}</td>
+              <td class="px-5 py-3 text-center text-gray-400">{{ row.lines.length }}</td>
+              <td class="px-5 py-3 text-center">
+                @if (row.edits.length > 0) {
+                  <span class="bg-amber-500/20 text-amber-400 text-xs font-medium px-2 py-1 rounded-full">
+                    Editado ({{ row.edits.length }})
+                  </span>
+                } @else {
+                  <span class="text-gray-600 text-xs">Original</span>
+                }
+              </td>
+              <td class="px-5 py-3 text-right">
+                <button (click)="openView(row)"
+                        class="text-purple-400 hover:text-purple-300 text-sm font-medium touch-manipulation">
+                  Ver →
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 
-    @if (selectedPeriod === 'MORNING') {
-      <p class="text-gray-500 text-xs">
-        El inventario de la mañana puede guardarse varias veces — si el gerente trae nuevos suministros, actualiza las cantidades y vuelve a guardar.
-      </p>
+</div>
+
+<!-- ── SIDE PANEL ──────────────────────────────────────────────── -->
+@if (panelMode !== 'none') {
+  <!-- Backdrop -->
+  <div class="fixed inset-0 bg-black/60 z-40" (click)="closePanel()"></div>
+
+  <!-- Panel -->
+  <div class="fixed right-0 top-0 h-full w-full max-w-lg bg-gray-900 z-50 flex flex-col shadow-2xl">
+
+    <!-- ── NEW SNAPSHOT ───────────────────────────────────────── -->
+    @if (panelMode === 'new') {
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
+        <h2 class="text-white font-bold text-lg">Nueva lectura</h2>
+        <button (click)="closePanel()" class="text-gray-400 hover:text-white text-2xl leading-none touch-manipulation">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+        <!-- Date + Period -->
+        <div class="flex gap-3">
+          <div class="flex-1 space-y-1">
+            <label class="text-gray-400 text-xs">Fecha</label>
+            <input [(ngModel)]="newDate" type="date"
+                   class="w-full bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" />
+          </div>
+          <div class="flex-1 space-y-1">
+            <label class="text-gray-400 text-xs">Periodo</label>
+            <select [(ngModel)]="newPeriod"
+                    class="w-full bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+              <option value="MORNING">Mañana</option>
+              <option value="NIGHT">Noche</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Qty rows -->
+        <div class="space-y-2">
+          @for (row of rows; track row.display) {
+            <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
+              <span class="flex-1 text-white text-sm">{{ row.display }}</span>
+              <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
+              <input [(ngModel)]="row.qty" type="number" min="0" step="1"
+                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" />
+              <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
+            </div>
+          }
+        </div>
+
+        <!-- Notes -->
+        <textarea [(ngModel)]="newNotes" rows="2" placeholder="Notas (opcional)"
+                  class="w-full bg-gray-800 text-white rounded-xl px-4 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"></textarea>
+      </div>
+
+      <div class="px-6 py-4 border-t border-gray-800 shrink-0 space-y-2">
+        @if (saveError) { <p class="text-red-400 text-sm">{{ saveError }}</p> }
+        <button (click)="saveNew()" [disabled]="saving"
+                class="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold touch-manipulation">
+          {{ saving ? 'Guardando...' : 'Guardar lectura' }}
+        </button>
+      </div>
     }
 
-    <!-- Form grid -->
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <!-- ── VIEW SNAPSHOT ──────────────────────────────────────── -->
+    @if (panelMode === 'view') {
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
+        <div>
+          <h2 class="text-white font-bold text-lg">
+            {{ selectedSnapshot ? periodLabel(selectedSnapshot.period) : '' }}
+            — {{ selectedSnapshot?.takenAt | date:'dd/MM/yyyy HH:mm' }}
+          </h2>
+          @if (selectedSnapshot) {
+            <p class="text-gray-400 text-xs mt-0.5">Registrado por {{ selectedSnapshot.user.name }}</p>
+          }
+        </div>
+        <button (click)="closePanel()" class="text-gray-400 hover:text-white text-2xl leading-none touch-manipulation">✕</button>
+      </div>
 
-      <!-- Flavors -->
-      <div class="bg-gray-900 rounded-2xl p-5 space-y-3">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400">Sabores</h2>
-        @for (row of flavorQties; track row.id) {
-          <div class="flex items-center gap-3">
-            <label class="flex-1 text-white text-sm truncate">{{ row.label }}</label>
-            <div class="flex items-center gap-2">
-              <button (click)="dec(row, 0.5)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-bold touch-manipulation">−</button>
-              <input
-                [(ngModel)]="row.qty"
-                type="number"
-                min="0"
-                step="0.5"
-                class="w-20 bg-gray-800 text-white text-center rounded-lg px-2 py-1.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-              />
-              <button (click)="inc(row, 0.5)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-bold touch-manipulation">+</button>
-            </div>
+      @if (loadingDetail) {
+        <div class="flex-1 flex items-center justify-center">
+          <p class="text-gray-400">Cargando...</p>
+        </div>
+      } @else if (selectedSnapshot) {
+        <div class="flex-1 overflow-y-auto p-6 space-y-5">
+
+          <!-- Lines -->
+          <div class="space-y-2">
+            @for (line of selectedSnapshot.lines; track line.id) {
+              <div class="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-2.5">
+                <span class="text-white text-sm">{{ lineName(line) }}</span>
+                <span class="text-purple-400 font-semibold text-sm">{{ formatQty(line.quantity) }}</span>
+              </div>
+            }
           </div>
-        }
-      </div>
 
-      <!-- Toppings -->
-      <div class="bg-gray-900 rounded-2xl p-5 space-y-3">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400">Toppings</h2>
-        @for (row of toppingQties; track row.id) {
-          <div class="flex items-center gap-3">
-            <label class="flex-1 text-white text-sm truncate">{{ row.label }}</label>
-            <div class="flex items-center gap-2">
-              <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-bold touch-manipulation">−</button>
-              <input
-                [(ngModel)]="row.qty"
-                type="number"
-                min="0"
-                step="1"
-                class="w-20 bg-gray-800 text-white text-center rounded-lg px-2 py-1.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-              />
-              <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-bold touch-manipulation">+</button>
+          @if (selectedSnapshot.notes) {
+            <div class="bg-gray-800 rounded-xl px-4 py-3">
+              <p class="text-gray-400 text-xs mb-1">Notas</p>
+              <p class="text-gray-200 text-sm">{{ selectedSnapshot.notes }}</p>
             </div>
-          </div>
-        }
-      </div>
-    </div>
+          }
 
-    <!-- Notes + save -->
-    <div class="space-y-3">
-      <textarea
-        [(ngModel)]="notes"
-        rows="2"
-        placeholder="Notas (opcional)"
-        class="w-full bg-gray-900 text-white rounded-xl px-4 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"
-      ></textarea>
-
-      <div class="flex items-center gap-4">
-        <button
-          (click)="save()"
-          [disabled]="saving"
-          class="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-semibold touch-manipulation"
-        >
-          {{ saving ? 'Guardando...' : (selectedPeriod === 'MORNING' ? 'Guardar inventario mañana' : 'Guardar inventario noche') }}
-        </button>
-        @if (saveSuccess) {
-          <span class="text-green-400 text-sm">Guardado correctamente</span>
-        }
-        @if (saveError) {
-          <span class="text-red-400 text-sm">{{ saveError }}</span>
-        }
-      </div>
-    </div>
-
-    <!-- Delta table (only when both snapshots exist) -->
-    @if (delta.length > 0) {
-      <div class="bg-gray-900 rounded-2xl p-5 space-y-3">
-        <h2 class="text-white font-semibold">Consumo del día</h2>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-gray-400 text-left border-b border-gray-800">
-                <th class="pb-2 font-medium">Ítem</th>
-                <th class="pb-2 font-medium text-right">Mañana</th>
-                <th class="pb-2 font-medium text-right">Noche</th>
-                <th class="pb-2 font-medium text-right">Consumido</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-800">
-              @for (line of delta; track line.label) {
-                <tr
-                  [class.text-white]="line.consumed >= 0"
-                  [class.text-amber-400]="line.consumed < 0"
-                >
-                  <td class="py-2">{{ line.label }}</td>
-                  <td class="py-2 text-right text-gray-300">{{ formatQty(line.morning) }}</td>
-                  <td class="py-2 text-right text-gray-300">{{ formatQty(line.night) }}</td>
-                  <td class="py-2 text-right font-semibold">
-                    @if (line.consumed < 0) {
-                      +{{ formatQty(-line.consumed) }} (reabastecido)
-                    } @else {
-                      {{ formatQty(line.consumed) }}
-                    }
-                  </td>
-                </tr>
+          <!-- Audit log -->
+          @if (selectedSnapshot.edits.length > 0) {
+            <div class="space-y-2">
+              <h3 class="text-amber-400 text-sm font-semibold flex items-center gap-2">
+                <span>⚠</span> Historial de ediciones
+              </h3>
+              @for (edit of selectedSnapshot.edits; track edit.id) {
+                <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm">
+                  <div class="flex justify-between text-gray-300">
+                    <span class="font-medium">{{ edit.user.name }}</span>
+                    <span class="text-gray-500">{{ edit.editedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                  </div>
+                  @if (edit.reason) {
+                    <p class="text-gray-400 mt-1">{{ edit.reason }}</p>
+                  } @else {
+                    <p class="text-gray-600 mt-1 italic">Sin motivo indicado</p>
+                  }
+                </div>
               }
-            </tbody>
-          </table>
+            </div>
+          }
+
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-800 shrink-0">
+          <button (click)="startEdit()"
+                  class="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl font-semibold touch-manipulation">
+            Editar esta lectura
+          </button>
+        </div>
+      }
+    }
+
+    <!-- ── EDIT SNAPSHOT ──────────────────────────────────────── -->
+    @if (panelMode === 'edit') {
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
+        <h2 class="text-white font-bold text-lg">Editar lectura</h2>
+        <button (click)="cancelEdit()" class="text-gray-400 hover:text-white text-2xl leading-none touch-manipulation">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-300">
+          Estás editando un registro existente. El cambio quedará registrado en el historial de ediciones.
+        </div>
+
+        <!-- Qty rows -->
+        <div class="space-y-2">
+          @for (row of editRows; track row.display) {
+            <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
+              <span class="flex-1 text-white text-sm">{{ row.display }}</span>
+              <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
+              <input [(ngModel)]="row.qty" type="number" min="0" step="1"
+                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" />
+              <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
+            </div>
+          }
+        </div>
+
+        <!-- Notes -->
+        <textarea [(ngModel)]="editNotes" rows="2" placeholder="Notas (opcional)"
+                  class="w-full bg-gray-800 text-white rounded-xl px-4 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"></textarea>
+
+        <!-- Reason -->
+        <div class="space-y-1">
+          <label class="text-gray-400 text-xs">Motivo de la corrección (aparecerá en el historial)</label>
+          <textarea [(ngModel)]="editReason" rows="2" placeholder="Ej. Error al contar, se corrige valor real"
+                    class="w-full bg-gray-800 text-white rounded-xl px-4 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"></textarea>
+        </div>
+
+      </div>
+
+      <div class="px-6 py-4 border-t border-gray-800 shrink-0 space-y-2">
+        @if (editError) { <p class="text-red-400 text-sm">{{ editError }}</p> }
+        <div class="flex gap-3">
+          <button (click)="cancelEdit()"
+                  class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl font-semibold touch-manipulation">
+            Cancelar
+          </button>
+          <button (click)="saveEdit()" [disabled]="editing"
+                  class="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold touch-manipulation">
+            {{ editing ? 'Guardando...' : 'Guardar cambios' }}
+          </button>
         </div>
       </div>
-    } @else if (morningSnapshot && !nightSnapshot) {
-      <p class="text-gray-500 text-sm">Guarda el inventario de noche para ver el consumo del día.</p>
     }
 
-  }
-</div>
+  </div>
+}

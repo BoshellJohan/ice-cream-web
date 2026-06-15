@@ -40,9 +40,9 @@ export class OrdersService {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(products.map(p => [p.id, p]));
-    const flavorMap  = new Map(flavors.map(f  => [f.id, f]));
-    const toppingMap = new Map(toppings.map(t => [t.id, t]));
+    const productMap = new Map(products.map(p => [p.id, p] as const));
+    const flavorMap  = new Map(flavors.map(f  => [f.id, f] as const));
+    const toppingMap = new Map(toppings.map(t => [t.id, t] as const));
 
     for (const item of dto.items) {
       if (!productMap.has(item.productId)) {

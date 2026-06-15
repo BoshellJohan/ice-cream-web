@@ -36,37 +36,38 @@ enum SnapshotPeriod {
 }
 
 model User {
-  id           String              @id @default(uuid())
-  name         String
-  email        String              @unique
-  passwordHash String
-  role         Role                @default(STAFF)
-  active       Boolean             @default(true)
-  createdAt    DateTime            @default(now())
-  orders       Order[]
-  snapshots    InventorySnapshot[]
+  id              String            @id @default(uuid())
+  name            String
+  email           String            @unique
+  passwordHash    String
+  role            Role              @default(STAFF)
+  active          Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  orders          Order[]
+  snapshots       InventorySnapshot[]
+  inventoryEdits  InventoryEdit[]
 }
 
 model Product {
-  id         String      @id @default(uuid())
-  name       String
-  type       ProductType
-  size       ProductSize
-  basePrice  Decimal     @db.Decimal(10, 2)
-  imageUrl   String?
-  active     Boolean     @default(true)
-  createdAt  DateTime    @default(now())
-  orderItems OrderItem[]
+  id             String          @id @default(uuid())
+  name           String
+  type           ProductType
+  size           ProductSize
+  basePrice      Decimal         @db.Decimal(10, 2)
+  imageUrl       String?
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  orderItems     OrderItem[]
+  inventoryLines InventoryLine[]
 }
 
 model Flavor {
-  id             String          @id @default(uuid())
-  name           String
-  priceModifier  Decimal         @db.Decimal(10, 2) @default(0)
-  imageUrl       String?
-  active         Boolean         @default(true)
-  orderItems     OrderItem[]
-  inventoryLines InventoryLine[]
+  id            String      @id @default(uuid())
+  name          String
+  priceModifier Decimal     @db.Decimal(10, 2) @default(0)
+  imageUrl      String?
+  active        Boolean     @default(true)
+  orderItems    OrderItem[]
 }
 
 model Topping {
@@ -76,7 +77,6 @@ model Topping {
   imageUrl          String?
   active            Boolean            @default(true)
   orderItemToppings OrderItemTopping[]
-  inventoryLines    InventoryLine[]
 }
 
 model Coupon {
@@ -135,15 +135,25 @@ model InventorySnapshot {
   period  SnapshotPeriod
   notes   String?
   lines   InventoryLine[]
+  edits   InventoryEdit[]
 }
 
 model InventoryLine {
   id         String            @id @default(uuid())
   snapshotId String
   snapshot   InventorySnapshot @relation(fields: [snapshotId], references: [id])
-  flavorId   String?
-  flavor     Flavor?           @relation(fields: [flavorId], references: [id])
-  toppingId  String?
-  topping    Topping?          @relation(fields: [toppingId], references: [id])
+  productId  String?
+  product    Product?          @relation(fields: [productId], references: [id])
+  label      String?
   quantity   Decimal           @db.Decimal(10, 2)
+}
+
+model InventoryEdit {
+  id         String            @id @default(uuid())
+  snapshotId String
+  snapshot   InventorySnapshot @relation(fields: [snapshotId], references: [id])
+  editedBy   String
+  user       User              @relation(fields: [editedBy], references: [id])
+  editedAt   DateTime          @default(now())
+  reason     String?
 }
