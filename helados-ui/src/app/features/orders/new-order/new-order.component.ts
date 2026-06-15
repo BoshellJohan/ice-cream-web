@@ -11,14 +11,14 @@ import { Product } from '../../../core/models/product.model';
 import { Flavor } from '../../../core/models/flavor.model';
 import { Topping } from '../../../core/models/topping.model';
 import { CouponValidation } from '../../../core/models/coupon.model';
-import { CreateOrderPayload } from '../../../core/models/order.model';
+import { CreateOrderPayload, PaymentMethod } from '../../../core/models/order.model';
 
 interface FinishedItem {
   product: Product;
-  flavor: Flavor;
+  flavor: Flavor | null;
   toppings: { topping: Topping; quantity: number }[];
-  itemTotal: number;    // basePrice + priceModifier (no toppings)
-  toppingTotal: number; // Σ(unitPrice × qty)
+  itemTotal: number;
+  toppingTotal: number;
 }
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -49,6 +49,8 @@ export class NewOrderComponent implements OnInit {
   draftFlavor?: Flavor;
   toppingQties = new Map<string, number>();
 
+  paymentMethod: PaymentMethod | null = null;
+
   couponCode = '';
   couponResult: CouponValidation | null = null;
   couponError = '';
@@ -78,7 +80,20 @@ export class NewOrderComponent implements OnInit {
     this.draftProduct = product;
     this.draftFlavor  = undefined;
     this.toppingQties.clear();
-    this.step = 2;
+    if (product.directSale) {
+      // Skip flavor and toppings steps for direct-sale products
+      this.items.push({
+        product,
+        flavor:       null,
+        toppings:     [],
+        itemTotal:    Number(product.basePrice),
+        toppingTotal: 0,
+      });
+      this.draftProduct = undefined;
+      this.step = 1;
+    } else {
+      this.step = 2;
+    }
   }
 
   selectFlavor(flavor: Flavor) {
@@ -133,6 +148,10 @@ export class NewOrderComponent implements OnInit {
     this.step = 4;
   }
 
+  proceedToPaymentFromCart() {
+    this.step = 4;
+  }
+
   validateCoupon() {
     const code = this.couponCode.trim().toUpperCase();
     if (!code) return;
@@ -169,12 +188,14 @@ export class NewOrderComponent implements OnInit {
   }
 
   placeOrder() {
+    if (!this.paymentMethod) return;
     this.submitting  = true;
     this.submitError = '';
     const payload: CreateOrderPayload = {
+      paymentMethod: this.paymentMethod,
       items: this.items.map(item => ({
         productId: item.product.id,
-        flavorId:  item.flavor.id,
+        flavorId:  item.flavor?.id,
         toppings:  item.toppings.map(ts => ({ toppingId: ts.topping.id, quantity: ts.quantity })),
       })),
       couponCode: this.couponResult ? this.couponCode.trim().toUpperCase() : undefined,
@@ -194,17 +215,18 @@ export class NewOrderComponent implements OnInit {
   }
 
   resetOrder() {
-    this.step         = 1;
-    this.items        = [];
-    this.draftProduct = undefined;
-    this.draftFlavor  = undefined;
+    this.step          = 1;
+    this.items         = [];
+    this.draftProduct  = undefined;
+    this.draftFlavor   = undefined;
     this.toppingQties.clear();
-    this.couponCode   = '';
-    this.couponResult = null;
-    this.couponError  = '';
-    this.notes        = '';
-    this.submitError  = '';
-    this.orderSuccess = false;
+    this.paymentMethod = null;
+    this.couponCode    = '';
+    this.couponResult  = null;
+    this.couponError   = '';
+    this.notes         = '';
+    this.submitError   = '';
+    this.orderSuccess  = false;
   }
 
   formatPrice(n: number | string) { return `$${Number(n).toFixed(2)}`; }

@@ -49,6 +49,6 @@ export class OrderHistoryComponent implements OnInit {
   formatPrice(n: number | string) { return `$${Number(n).toFixed(2)}`; }
 
   itemSummary(order: Order): string {
-    return order.items.map(i => `${i.product.name} (${i.flavor.name})`).join(', ');
+    return order.items.map(i => i.flavor ? `${i.product.name} (${i.flavor.name})` : i.product.name).join(', ');
   }
 }

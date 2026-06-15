@@ -9,6 +9,7 @@ export interface Product {
   basePrice: number;
   imageUrl?: string;
   active: boolean;
+  directSale: boolean;
   createdAt: string;
 }
 
@@ -18,4 +19,5 @@ export interface CreateProductPayload {
   size: ProductSize;
   basePrice: number;
   imageUrl?: string;
+  directSale?: boolean;
 }

@@ -7,7 +7,7 @@ import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 const orderInclude = {
   items: {
     include: {
-      product: { select: { id: true, name: true, type: true, size: true } },
+      product: { select: { id: true, name: true, type: true, size: true, directSale: true } },
       flavor:  { select: { id: true, name: true } },
       toppings: { include: { topping: { select: { id: true, name: true } } } },
     },
@@ -29,12 +29,14 @@ export class OrdersService {
     }
 
     const productIds = dto.items.map(i => i.productId);
-    const flavorIds  = dto.items.map(i => i.flavorId);
+    const flavorIds  = dto.items.filter(i => i.flavorId).map(i => i.flavorId!);
     const toppingIds = [...new Set(dto.items.flatMap(i => i.toppings.map(t => t.toppingId)))];
 
     const [products, flavors, toppings] = await Promise.all([
       this.prisma.product.findMany({ where: { id: { in: productIds }, active: true } }),
-      this.prisma.flavor.findMany({  where: { id: { in: flavorIds  }, active: true } }),
+      flavorIds.length
+        ? this.prisma.flavor.findMany({ where: { id: { in: flavorIds }, active: true } })
+        : Promise.resolve([]),
       toppingIds.length
         ? this.prisma.topping.findMany({ where: { id: { in: toppingIds }, active: true } })
         : Promise.resolve([]),
@@ -45,15 +47,25 @@ export class OrdersService {
     const toppingMap = new Map(toppings.map(t => [t.id, t] as const));
 
     for (const item of dto.items) {
-      if (!productMap.has(item.productId)) {
+      const product = productMap.get(item.productId);
+      if (!product) {
         throw new NotFoundException(`Producto ${item.productId} no encontrado o inactivo`);
       }
-      if (!flavorMap.has(item.flavorId)) {
-        throw new NotFoundException(`Sabor ${item.flavorId} no encontrado o inactivo`);
-      }
-      for (const t of item.toppings) {
-        if (!toppingMap.has(t.toppingId)) {
-          throw new NotFoundException(`Topping ${t.toppingId} no encontrado o inactivo`);
+      if (product.directSale) {
+        if (item.flavorId) {
+          throw new BadRequestException(`El producto "${product.name}" es de venta directa y no admite sabor`);
+        }
+        if (item.toppings.length > 0) {
+          throw new BadRequestException(`El producto "${product.name}" es de venta directa y no admite toppings`);
+        }
+      } else {
+        if (!item.flavorId || !flavorMap.has(item.flavorId)) {
+          throw new NotFoundException(`Sabor ${item.flavorId ?? '(no especificado)'} no encontrado o inactivo`);
+        }
+        for (const t of item.toppings) {
+          if (!toppingMap.has(t.toppingId)) {
+            throw new NotFoundException(`Topping ${t.toppingId} no encontrado o inactivo`);
+          }
         }
       }
     }
@@ -62,9 +74,9 @@ export class OrdersService {
     let subtotal = 0;
 
     for (const item of dto.items) {
-      const product    = productMap.get(item.productId)!;
-      const flavor     = flavorMap.get(item.flavorId)!;
-      const itemTotal  = Number(product.basePrice) + Number(flavor.priceModifier);
+      const product     = productMap.get(item.productId)!;
+      const flavor      = item.flavorId ? flavorMap.get(item.flavorId) : undefined;
+      const itemTotal   = Number(product.basePrice) + (flavor ? Number(flavor.priceModifier) : 0);
       const toppingCost = item.toppings.reduce((sum, t) => {
         return sum + Number(toppingMap.get(t.toppingId)!.unitPrice) * t.quantity;
       }, 0);
@@ -79,8 +91,8 @@ export class OrdersService {
       const coupon = await this.couponsService.validate(dto.couponCode);
       couponId = coupon.id;
       discountAmount = coupon.discountType === 'PERCENTAGE'
-        ? subtotal * coupon.discountValue / 100
-        : Math.min(coupon.discountValue, subtotal);
+        ? subtotal * Number(coupon.discountValue) / 100
+        : Math.min(Number(coupon.discountValue), subtotal);
     }
 
     subtotal       = Math.round(subtotal       * 100) / 100;
@@ -92,6 +104,7 @@ export class OrdersService {
         data: {
           staffId,
           couponId,
+          paymentMethod: dto.paymentMethod,
           subtotal,
           discountAmount,
           totalAmount,
@@ -99,7 +112,7 @@ export class OrdersService {
           items: {
             create: dto.items.map((item, idx) => ({
               productId: item.productId,
-              flavorId:  item.flavorId,
+              flavorId:  item.flavorId ?? null,
               itemTotal: itemTotals[idx],
               toppings: {
                 create: item.toppings.map(t => ({

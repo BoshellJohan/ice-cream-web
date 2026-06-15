@@ -41,9 +41,14 @@
           <div class="p-3">
             <p class="font-bold text-white text-sm truncate">{{ item.name }}</p>
             <p class="text-purple-400 text-sm mt-0.5">{{ priceLabel(item) }}</p>
-            @if (!item.active) {
-              <span class="text-xs bg-red-900/50 text-red-300 px-2 py-0.5 rounded mt-1 inline-block">Inactivo</span>
-            }
+            <div class="flex flex-wrap gap-1 mt-1">
+              @if (!item.active) {
+                <span class="text-xs bg-red-900/50 text-red-300 px-2 py-0.5 rounded">Inactivo</span>
+              }
+              @if ($any(item).directSale) {
+                <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Directo</span>
+              }
+            </div>
           </div>
 
           <div class="px-3 pb-3 flex gap-2">
@@ -97,6 +102,21 @@
             <label class="block text-sm text-gray-300 mb-1">Precio base ($)</label>
             <input [(ngModel)]="form.basePrice" type="number" min="0" step="0.01" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
           </div>
+          <label class="flex items-center gap-3 cursor-pointer select-none">
+            <div class="relative">
+              <input type="checkbox" [(ngModel)]="form.directSale" class="sr-only" />
+              <div class="w-10 h-6 rounded-full transition-colors"
+                   [class.bg-purple-600]="form.directSale"
+                   [class.bg-gray-700]="!form.directSale">
+                <div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                     [class.translate-x-4]="form.directSale"></div>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm text-white font-medium">Venta directa</p>
+              <p class="text-xs text-gray-400">Se agrega al pedido sin seleccionar sabor ni toppings</p>
+            </div>
+          </label>
         }
 
         @if (activeTab === 'flavors') {

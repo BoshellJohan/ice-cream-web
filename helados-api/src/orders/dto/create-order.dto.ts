@@ -1,4 +1,4 @@
-import { IsArray, IsInt, IsOptional, IsString, IsUUID, Min, ValidateNested, ArrayMinSize } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsOptional, IsString, IsUUID, Min, ValidateNested, ArrayMinSize } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateOrderItemToppingDto {
@@ -14,8 +14,9 @@ export class CreateOrderItemDto {
   @IsUUID()
   productId: string;
 
+  @IsOptional()
   @IsUUID()
-  flavorId: string;
+  flavorId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -24,6 +25,9 @@ export class CreateOrderItemDto {
 }
 
 export class CreateOrderDto {
+  @IsEnum(['QR', 'CASH'])
+  paymentMethod: 'QR' | 'CASH';
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

@@ -9,11 +9,8 @@ import {
   InventoryLinePayload, SnapshotPeriod,
 } from '../../core/models/inventory.model';
 
-const WATER_LABEL = 'Agua';
-
 interface QtyRow {
-  productId?: string;
-  label?: string;
+  productId: string;
   display: string;
   qty: number;
 }
@@ -57,7 +54,7 @@ export class InventoryComponent implements OnInit {
     this.productSvc.getAll().subscribe({
       next: (products) => {
         this.products = products
-          .filter(p => p.active && (p.type === 'CONE' || p.type === 'CUP'))
+          .filter(p => p.active)
           .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
         this.loadHistory();
       },
@@ -101,18 +98,11 @@ export class InventoryComponent implements OnInit {
   }
 
   private buildRows(snapshot: InventorySnapshot | null) {
-    this.rows = [
-      ...this.products.map(p => ({
-        productId: p.id,
-        display:   p.name,
-        qty: Number(snapshot?.lines.find(l => l.productId === p.id)?.quantity ?? 0),
-      })),
-      {
-        label:   WATER_LABEL,
-        display: WATER_LABEL,
-        qty: Number(snapshot?.lines.find(l => l.label === WATER_LABEL)?.quantity ?? 0),
-      },
-    ];
+    this.rows = this.products.map(p => ({
+      productId: p.id,
+      display:   p.name,
+      qty: Number(snapshot?.lines.find(l => l.productId === p.id)?.quantity ?? 0),
+    }));
   }
 
   inc(row: QtyRow, step: number) { row.qty = Math.round((row.qty + step) * 10) / 10; }
@@ -123,7 +113,6 @@ export class InventoryComponent implements OnInit {
     this.saveError = '';
     const lines: InventoryLinePayload[] = this.rows.map(r => ({
       productId: r.productId,
-      label:     r.label,
       quantity:  r.qty,
     }));
     this.inventorySvc.upsert({
@@ -139,18 +128,11 @@ export class InventoryComponent implements OnInit {
 
   startEdit() {
     if (!this.selectedSnapshot) return;
-    this.editRows = [
-      ...this.products.map(p => ({
-        productId: p.id,
-        display:   p.name,
-        qty: Number(this.selectedSnapshot!.lines.find(l => l.productId === p.id)?.quantity ?? 0),
-      })),
-      {
-        label:   WATER_LABEL,
-        display: WATER_LABEL,
-        qty: Number(this.selectedSnapshot!.lines.find(l => l.label === WATER_LABEL)?.quantity ?? 0),
-      },
-    ];
+    this.editRows = this.products.map(p => ({
+      productId: p.id,
+      display:   p.name,
+      qty: Number(this.selectedSnapshot!.lines.find(l => l.productId === p.id)?.quantity ?? 0),
+    }));
     this.editNotes  = this.selectedSnapshot.notes ?? '';
     this.editReason = '';
     this.editError  = '';
@@ -165,7 +147,6 @@ export class InventoryComponent implements OnInit {
     this.editError = '';
     const lines: InventoryLinePayload[] = this.editRows.map(r => ({
       productId: r.productId,
-      label:     r.label,
       quantity:  r.qty,
     }));
     this.inventorySvc.update(this.selectedSnapshot.id, {

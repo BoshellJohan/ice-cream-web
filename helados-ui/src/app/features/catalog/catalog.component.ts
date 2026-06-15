@@ -43,6 +43,7 @@ export class CatalogComponent implements OnInit {
     type: 'CONE' as ProductType,
     size: 'SMALL' as ProductSize,
     imageUrl: '',
+    directSale: false,
   };
 
   productTypes: ProductType[] = ['CONE', 'CONTAINER', 'CUP', 'BOWL'];
@@ -76,7 +77,7 @@ export class CatalogComponent implements OnInit {
 
   openCreate() {
     this.editingId = null;
-    this.form = { name: '', basePrice: 0, priceModifier: 0, unitPrice: 0, type: 'CONE', size: 'SMALL', imageUrl: '' };
+    this.form = { name: '', basePrice: 0, priceModifier: 0, unitPrice: 0, type: 'CONE', size: 'SMALL', imageUrl: '', directSale: false };
     this.error = '';
     this.showForm = true;
   }
@@ -91,6 +92,7 @@ export class CatalogComponent implements OnInit {
       type: (item as Product).type ?? 'CONE',
       size: (item as Product).size ?? 'SMALL',
       imageUrl: item.imageUrl ?? '',
+      directSale: (item as Product).directSale ?? false,
     };
     this.error = '';
     this.showForm = true;
@@ -104,8 +106,8 @@ export class CatalogComponent implements OnInit {
 
     const obs: Observable<unknown> = this.activeTab === 'products'
       ? (this.editingId
-          ? this.productSvc.update(this.editingId, { name: this.form.name, type: this.form.type, size: this.form.size, basePrice: this.form.basePrice, imageUrl: this.form.imageUrl || undefined })
-          : this.productSvc.create({ name: this.form.name, type: this.form.type, size: this.form.size, basePrice: this.form.basePrice, imageUrl: this.form.imageUrl || undefined }))
+          ? this.productSvc.update(this.editingId, { name: this.form.name, type: this.form.type, size: this.form.size, basePrice: this.form.basePrice, imageUrl: this.form.imageUrl || undefined, directSale: this.form.directSale })
+          : this.productSvc.create({ name: this.form.name, type: this.form.type, size: this.form.size, basePrice: this.form.basePrice, imageUrl: this.form.imageUrl || undefined, directSale: this.form.directSale }))
       : this.activeTab === 'flavors'
         ? (this.editingId
             ? this.flavorSvc.update(this.editingId, { name: this.form.name, priceModifier: this.form.priceModifier, imageUrl: this.form.imageUrl || undefined })
