@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 
 const orderInclude = {
+  payments: true,
   items: {
     include: {
       product: { select: { id: true, name: true, type: true, size: true, directSale: true } },
@@ -109,12 +110,29 @@ export class OrdersService {
     discountAmount = Math.round(discountAmount * 100) / 100;
     const totalAmount = Math.round((subtotal - discountAmount) * 100) / 100;
 
+    // Validate payments
+    const methods = dto.payments.map(p => p.method);
+    if (new Set(methods).size !== methods.length) {
+      throw new BadRequestException('No se puede usar el mismo método de pago más de una vez');
+    }
+
+    const paymentsTotal = Math.round(dto.payments.reduce((s, p) => s + p.amount, 0) * 100);
+    const expectedTotal = Math.round(totalAmount * 100);
+    if (paymentsTotal !== expectedTotal) {
+      throw new UnprocessableEntityException('La suma de los pagos no coincide con el total del pedido');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           staffId,
           couponId,
-          paymentMethod: dto.paymentMethod,
+          payments: {
+            create: dto.payments.map(p => ({
+              paymentMethod: p.method,
+              amount:        p.amount,
+            })),
+          },
           subtotal,
           discountAmount,
           totalAmount,
