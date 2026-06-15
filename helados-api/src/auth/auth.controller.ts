@@ -15,7 +15,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
-  changePassword(@Request() req: { user: { id: string; role: string } }, @Body() dto: ChangePasswordDto) {
-    return this.auth.changePassword(req.user.id, dto);
+  changePassword(@Request() req: { user: { sub: string; role: string } }, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(req.user.sub, dto);
   }
 }

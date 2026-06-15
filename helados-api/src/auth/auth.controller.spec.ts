@@ -28,7 +28,7 @@ describe('AuthController', () => {
 
   it('changePassword delegates to service', async () => {
     await controller.changePassword(
-      { user: { id: 'uid', role: 'STAFF' } },
+      { user: { sub: 'uid', role: 'STAFF' } },
       { currentPassword: 'old123', newPassword: 'new123' },
     );
     expect(mockAuthService.changePassword).toHaveBeenCalledWith('uid', {

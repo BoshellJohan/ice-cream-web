@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -28,6 +28,9 @@ export class UsersService {
   async changeRole(id: string, role: 'STAFF' | 'ADMIN') {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User ${id} not found`);
+    if (user.role === 'ADMIN' && role === 'STAFF') {
+      throw new ForbiddenException('No se pueden quitar los privilegios de administrador a otro administrador');
+    }
     return this.prisma.user.update({
       where: { id },
       data: { role },
