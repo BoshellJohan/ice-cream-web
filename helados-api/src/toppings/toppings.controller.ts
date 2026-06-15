@@ -5,6 +5,7 @@ import { Roles } from '../auth/roles.decorator';
 import { ToppingsService } from './toppings.service';
 import { CreateToppingDto } from './dto/create-topping.dto';
 import { UpdateToppingDto } from './dto/update-topping.dto';
+import { UpdateTypeConfigDto } from './dto/update-type-config.dto';
 
 @Controller('toppings')
 @UseGuards(JwtAuthGuard)
@@ -14,6 +15,21 @@ export class ToppingsController {
   @Get()
   findAll(@Request() req: { user: { role: string } }) {
     return this.toppings.findAll(req.user.role === 'ADMIN');
+  }
+
+  @Get('type-config')
+  getTypeConfigs() {
+    return this.toppings.getTypeConfigs();
+  }
+
+  @Patch('type-config/:type')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  updateTypeConfig(
+    @Param('type') type: 'NORMAL' | 'PREMIUM',
+    @Body() dto: UpdateTypeConfigDto,
+  ) {
+    return this.toppings.updateTypeConfig(type, dto);
   }
 
   @Post()
