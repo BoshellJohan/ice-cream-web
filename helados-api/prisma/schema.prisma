@@ -131,9 +131,11 @@ model Order {
 model OrderPayment {
   id            String        @id @default(uuid())
   orderId       String
-  order         Order         @relation(fields: [orderId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
   paymentMethod PaymentMethod
   amount        Decimal       @db.Decimal(10, 2)
+
+  @@index([orderId])
 }
 
 model OrderItem {
