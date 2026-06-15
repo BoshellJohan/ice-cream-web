@@ -6,7 +6,7 @@ export class CreateOrderPaymentDto {
   method: 'QR' | 'CASH';
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @Min(0.01)
   amount: number;
 }
 
