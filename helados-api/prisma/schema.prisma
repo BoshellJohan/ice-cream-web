@@ -31,6 +31,11 @@ enum DiscountType {
   FIXED
 }
 
+enum ToppingType {
+  NORMAL
+  PREMIUM
+}
+
 enum SnapshotPeriod {
   MORNING
   NIGHT
@@ -55,17 +60,19 @@ model User {
 }
 
 model Product {
-  id             String          @id @default(uuid())
-  name           String
-  type           ProductType
-  size           ProductSize
-  basePrice      Decimal         @db.Decimal(10, 2)
-  imageUrl       String?
-  active         Boolean         @default(true)
-  directSale     Boolean         @default(false)
-  createdAt      DateTime        @default(now())
-  orderItems     OrderItem[]
-  inventoryLines InventoryLine[]
+  id                  String          @id @default(uuid())
+  name                String
+  type                ProductType
+  size                ProductSize
+  basePrice           Decimal         @db.Decimal(10, 2)
+  imageUrl            String?
+  active              Boolean         @default(true)
+  directSale          Boolean         @default(false)
+  includedToppingType ToppingType?
+  includedToppingQty  Int?
+  createdAt           DateTime        @default(now())
+  orderItems          OrderItem[]
+  inventoryLines      InventoryLine[]
 }
 
 model Flavor {
@@ -77,9 +84,16 @@ model Flavor {
   orderItems    OrderItem[]
 }
 
+model ToppingTypeConfig {
+  type      ToppingType @id
+  unitPrice Decimal     @db.Decimal(10, 2)
+}
+
 model Topping {
   id                String             @id @default(uuid())
   name              String
+  type              ToppingType        @default(NORMAL)
+  customPrice       Decimal?           @db.Decimal(10, 2)
   unitPrice         Decimal            @db.Decimal(10, 2)
   imageUrl          String?
   active            Boolean            @default(true)
@@ -127,12 +141,13 @@ model OrderItem {
 }
 
 model OrderItemTopping {
-  id          String    @id @default(uuid())
-  orderItemId String
-  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
-  toppingId   String
-  topping     Topping   @relation(fields: [toppingId], references: [id])
-  quantity    Int
+  id               String    @id @default(uuid())
+  orderItemId      String
+  orderItem        OrderItem @relation(fields: [orderItemId], references: [id])
+  toppingId        String
+  topping          Topping   @relation(fields: [toppingId], references: [id])
+  quantity         Int
+  unitPriceAtSale  Decimal   @db.Decimal(10, 2)
 }
 
 model InventorySnapshot {
