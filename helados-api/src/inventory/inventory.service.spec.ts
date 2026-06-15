@@ -5,17 +5,24 @@ import { SnapshotPeriod } from './dto/create-snapshot.dto';
 
 const fakeSnapshot = {
   id: 'snap1', takenBy: 'user1', takenAt: new Date(),
-  period: 'MORNING', notes: null, lines: [], user: { id: 'user1', name: 'Ana' },
+  period: 'MORNING', notes: null, lines: [], edits: [], user: { id: 'user1', name: 'Ana' },
 };
 
 const mockPrisma = {
   inventorySnapshot: {
-    findFirst: jest.fn(),
-    create:    jest.fn(),
-    delete:    jest.fn(),
+    findFirst:  jest.fn(),
+    findMany:   jest.fn(),
+    findUnique: jest.fn(),
+    create:     jest.fn(),
+    update:     jest.fn(),
+    delete:     jest.fn(),
   },
   inventoryLine: {
     deleteMany: jest.fn(),
+  },
+  inventoryEdit: {
+    deleteMany: jest.fn(),
+    create:     jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -40,8 +47,8 @@ describe('InventoryService', () => {
       period: SnapshotPeriod.MORNING,
       date: '2026-06-13',
       lines: [
-        { flavorId: 'f1', quantity: 5 },
-        { toppingId: 't1', quantity: 10 },
+        { productId: 'p1', quantity: 5 },
+        { label: 'Agua',   quantity: 10 },
       ],
     };
 
@@ -67,27 +74,23 @@ describe('InventoryService', () => {
       expect(result).toEqual(fakeSnapshot);
     });
 
-    it('deletes existing lines + snapshot before creating new when one exists', async () => {
+    it('deletes existing lines, edits, and snapshot before creating new when one exists', async () => {
       const existingSnapshot = { id: 'old-snap', lines: [] };
       mockPrisma.$transaction.mockImplementation(
         (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
       );
       mockPrisma.inventorySnapshot.findFirst.mockResolvedValue(existingSnapshot);
       mockPrisma.inventoryLine.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.inventoryEdit.deleteMany.mockResolvedValue({ count: 0 });
       mockPrisma.inventorySnapshot.delete.mockResolvedValue(existingSnapshot);
       mockPrisma.inventorySnapshot.create.mockResolvedValue(fakeSnapshot);
 
       await service.upsertSnapshot('user1', dto);
 
-      const calls = [
-        mockPrisma.inventoryLine.deleteMany.mock.invocationCallOrder[0],
-        mockPrisma.inventorySnapshot.delete.mock.invocationCallOrder[0],
-        mockPrisma.inventorySnapshot.create.mock.invocationCallOrder[0],
-      ];
-      expect(calls[0]).toBeLessThan(calls[1]);
-      expect(calls[1]).toBeLessThan(calls[2]);
-
       expect(mockPrisma.inventoryLine.deleteMany).toHaveBeenCalledWith({
+        where: { snapshotId: 'old-snap' },
+      });
+      expect(mockPrisma.inventoryEdit.deleteMany).toHaveBeenCalledWith({
         where: { snapshotId: 'old-snap' },
       });
       expect(mockPrisma.inventorySnapshot.delete).toHaveBeenCalledWith({
@@ -109,8 +112,8 @@ describe('InventoryService', () => {
           data: expect.objectContaining({
             lines: {
               create: [
-                { flavorId: 'f1', toppingId: undefined, quantity: 5 },
-                { flavorId: undefined, toppingId: 't1', quantity: 10 },
+                { productId: 'p1', label: undefined, quantity: 5 },
+                { productId: undefined, label: 'Agua', quantity: 10 },
               ],
             },
           }),

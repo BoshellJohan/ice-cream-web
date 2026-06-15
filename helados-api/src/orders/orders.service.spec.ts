@@ -15,13 +15,14 @@ const mockPrisma = {
 
 const mockCouponsService = { validate: jest.fn() };
 
-const product  = { id: 'p1', name: 'Small Cone', basePrice: 5,   active: true };
+const product  = { id: 'p1', name: 'Small Cone', basePrice: 5,   active: true, directSale: false };
 const flavor   = { id: 'f1', name: 'Chocolate',  priceModifier: 1, active: true };
 const topping1 = { id: 't1', name: 'Oreo',       unitPrice: 0.5, active: true };
 const topping2 = { id: 't2', name: 'Sprinkles',  unitPrice: 1,   active: true };
 
 // 1 item: itemTotal = 5+1 = 6; toppings = 0.5×2 + 1×1 = 2; subtotal = 8
 const dto = {
+  paymentMethod: 'QR' as const,
   items: [{
     productId: 'p1',
     flavorId:  'f1',

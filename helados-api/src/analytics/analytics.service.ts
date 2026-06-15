@@ -66,10 +66,12 @@ export class AnalyticsService {
       }),
     ]);
 
+    const flavorIds = flavorGroups.map(g => g.flavorId).filter((id): id is string => id !== null);
+
     const [flavors, toppings] = await Promise.all([
-      flavorGroups.length
+      flavorIds.length
         ? this.prisma.flavor.findMany({
-            where: { id: { in: flavorGroups.map(g => g.flavorId) } },
+            where: { id: { in: flavorIds } },
             select: { id: true, name: true },
           })
         : Promise.resolve([]),
@@ -85,7 +87,7 @@ export class AnalyticsService {
     const toppingMap = new Map(toppings.map(t => [t.id, t.name] as const));
 
     return {
-      topFlavors:  flavorGroups.map(g  => ({ name: flavorMap.get(g.flavorId)   ?? g.flavorId,  count:    g._count.id })),
+      topFlavors:  flavorGroups.filter(g => g.flavorId !== null).map(g => ({ name: flavorMap.get(g.flavorId!)  ?? g.flavorId!,  count: g._count.id })),
       topToppings: toppingGroups.map(g => ({ name: toppingMap.get(g.toppingId) ?? g.toppingId, quantity: g._sum.quantity ?? 0 })),
     };
   }
