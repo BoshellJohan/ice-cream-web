@@ -128,7 +128,15 @@ export class NewOrderComponent implements OnInit {
     const toppingsList = this.toppings
       .filter(t => (this.toppingQties.get(t.id) ?? 0) > 0)
       .map(t => ({ topping: t, quantity: this.toppingQties.get(t.id)! }));
-    const toppingTotal = toppingsList.reduce((s, ts) => s + Number(ts.topping.unitPrice) * ts.quantity, 0);
+    let remainingFree = product.includedToppingQty ?? 0;
+    const toppingTotal = toppingsList.reduce((s, ts) => {
+      if (ts.topping.type === product.includedToppingType && remainingFree > 0) {
+        const freeQty = Math.min(ts.quantity, remainingFree);
+        remainingFree -= freeQty;
+        return s + (ts.quantity - freeQty) * Number(ts.topping.unitPrice);
+      }
+      return s + ts.quantity * Number(ts.topping.unitPrice);
+    }, 0);
     return { product, flavor, toppings: toppingsList, itemTotal, toppingTotal };
   }
 
