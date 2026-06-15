@@ -21,6 +21,39 @@
     }
   </div>
 
+  <!-- Topping type price config (toppings tab only) -->
+  @if (activeTab === 'toppings') {
+    <div class="bg-gray-900 rounded-2xl p-4 mb-6 border border-gray-700">
+      <h3 class="text-sm font-semibold text-gray-300 mb-3">Precios por tipo</h3>
+      <div class="flex gap-4 flex-wrap">
+        @for (config of typeConfigs; track config.type) {
+          <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
+            @if (config.type === 'NORMAL') {
+              <span class="text-xs font-semibold text-blue-400 uppercase tracking-wide">Normal</span>
+            } @else {
+              <span class="text-xs font-semibold text-amber-400 uppercase tracking-wide">Premium</span>
+            }
+            @if (editingTypeConfig === config.type) {
+              <input
+                [(ngModel)]="typeConfigDraft"
+                type="number"
+                min="0"
+                step="0.01"
+                class="w-24 bg-gray-700 text-white rounded-lg px-2 py-1 text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <button (click)="saveTypeConfig()" class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg touch-manipulation">OK</button>
+              <button (click)="editingTypeConfig = null" class="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded-lg touch-manipulation">✕</button>
+            } @else {
+              <span class="text-white font-medium">${{ config.unitPrice | number:'1.2-2' }}</span>
+              <button (click)="startEditTypeConfig(config.type)" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1 rounded-lg touch-manipulation">Editar</button>
+            }
+          </div>
+        }
+      </div>
+      <p class="text-xs text-gray-500 mt-2">El precio del tipo aplica a todos los toppings sin precio personalizado.</p>
+    </div>
+  }
+
   @if (loading) {
     <p class="text-gray-400">Cargando...</p>
   } @else {
@@ -47,6 +80,17 @@
               }
               @if ($any(item).directSale) {
                 <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Directo</span>
+              }
+              @if ($any(item).type === 'PREMIUM') {
+                <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">Premium</span>
+              }
+              @if ($any(item).customPrice != null) {
+                <span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Precio propio</span>
+              }
+              @if ($any(item).includedToppingType) {
+                <span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
+                  +{{ $any(item).includedToppingQty }} {{ $any(item).includedToppingType === 'NORMAL' ? 'Normal' : 'Premium' }}
+                </span>
               }
             </div>
           </div>
@@ -117,6 +161,27 @@
               <p class="text-xs text-gray-400">Se agrega al pedido sin seleccionar sabor ni toppings</p>
             </div>
           </label>
+
+          <!-- Included topping allowance -->
+          <div>
+            <label class="block text-sm text-gray-300 mb-1">Topping incluido</label>
+            <select [(ngModel)]="form.includedToppingType" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option [ngValue]="null">Ninguno</option>
+              <option value="NORMAL">Normal</option>
+              <option value="PREMIUM">Premium</option>
+            </select>
+          </div>
+
+          @if (form.includedToppingType) {
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Cantidad incluida</label>
+              <input
+                [(ngModel)]="form.includedToppingQty"
+                type="number" min="1" step="1"
+                class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          }
         }
 
         @if (activeTab === 'flavors') {
@@ -127,10 +192,50 @@
         }
 
         @if (activeTab === 'toppings') {
+          <!-- Topping type selector -->
           <div>
-            <label class="block text-sm text-gray-300 mb-1">Precio por unidad ($)</label>
-            <input [(ngModel)]="form.unitPrice" type="number" min="0" step="0.01" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            <label class="block text-sm text-gray-300 mb-2">Tipo</label>
+            <div class="flex gap-2">
+              @for (t of toppingTypes; track t) {
+                <button
+                  type="button"
+                  (click)="form.toppingType = t"
+                  class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors touch-manipulation"
+                  [class.bg-purple-600]="form.toppingType === t"
+                  [class.text-white]="form.toppingType === t"
+                  [class.bg-gray-700]="form.toppingType !== t"
+                  [class.text-gray-400]="form.toppingType !== t"
+                >{{ t === 'NORMAL' ? 'Normal' : 'Premium' }}</button>
+              }
+            </div>
+            <p class="text-xs text-gray-500 mt-1">
+              Precio del tipo: ${{ typeConfigPrice(form.toppingType) | number:'1.2-2' }}
+            </p>
           </div>
+
+          <!-- Custom price toggle -->
+          <label class="flex items-center gap-3 cursor-pointer select-none">
+            <div class="relative">
+              <input type="checkbox" [(ngModel)]="form.useCustomPrice" class="sr-only" />
+              <div class="w-10 h-6 rounded-full transition-colors"
+                   [class.bg-purple-600]="form.useCustomPrice"
+                   [class.bg-gray-700]="!form.useCustomPrice">
+                <div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                     [class.translate-x-4]="form.useCustomPrice"></div>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm text-white font-medium">Precio personalizado</p>
+              <p class="text-xs text-gray-400">Anula el precio del tipo para este topping</p>
+            </div>
+          </label>
+
+          @if (form.useCustomPrice) {
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Precio personalizado ($)</label>
+              <input [(ngModel)]="form.customPrice" type="number" min="0" step="0.01" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            </div>
+          }
         }
 
         <div>
