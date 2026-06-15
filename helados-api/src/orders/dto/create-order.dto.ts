@@ -1,5 +1,14 @@
-import { IsArray, IsEnum, IsInt, IsOptional, IsString, IsUUID, Min, ValidateNested, ArrayMinSize } from 'class-validator';
+import { IsArray, ArrayMinSize, ArrayMaxSize, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export class CreateOrderPaymentDto {
+  @IsEnum(['QR', 'CASH'])
+  method: 'QR' | 'CASH';
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  amount: number;
+}
 
 export class CreateOrderItemToppingDto {
   @IsUUID()
@@ -25,8 +34,12 @@ export class CreateOrderItemDto {
 }
 
 export class CreateOrderDto {
-  @IsEnum(['QR', 'CASH'])
-  paymentMethod: 'QR' | 'CASH';
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderPaymentDto)
+  payments: CreateOrderPaymentDto[];
 
   @IsArray()
   @ArrayMinSize(1)

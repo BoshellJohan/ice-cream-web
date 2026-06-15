@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CouponsService } from '../coupons/coupons.service';
@@ -26,9 +26,9 @@ const productWithAllowance = {
 };
 const flavor2 = { id: 'f2', name: 'Vanilla', priceModifier: 0, active: true };
 
-// 1 item: itemTotal = 5+1 = 6; toppings = 0.5×2 + 1×1 = 2; subtotal = 8
+// subtotal = 5+1 (base+modifier) + 0.5×2+1×1 (toppings) = 8
 const dto = {
-  paymentMethod: 'QR' as const,
+  payments: [{ method: 'QR' as const, amount: 8 }],
   items: [{
     productId: 'p1',
     flavorId:  'f1',
@@ -42,6 +42,7 @@ const dto = {
 const fakeOrder = {
   id: 'order1', staffId: 'staff1', couponId: null, coupon: null,
   staff: { id: 'staff1', name: 'Ana' },
+  payments: [{ id: 'pay1', orderId: 'order1', paymentMethod: 'QR', amount: 8 }],
   subtotal: 8, discountAmount: 0, totalAmount: 8, notes: null,
   createdAt: new Date(), items: [],
 };
@@ -85,7 +86,8 @@ describe('OrdersService', () => {
       setupMocks();
       mockCouponsService.validate.mockResolvedValue({ id: 'c1', code: 'SAVE10', discountType: 'PERCENTAGE', discountValue: 10 });
       mockPrisma.coupon.update.mockResolvedValue({});
-      await service.create('staff1', { ...dto, couponCode: 'SAVE10' });
+      // totalAmount after 10% = 7.2 → payment must match
+      await service.create('staff1', { ...dto, payments: [{ method: 'QR' as const, amount: 7.2 }], couponCode: 'SAVE10' });
       expect(mockPrisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ subtotal: 8, discountAmount: 0.8, totalAmount: 7.2 }),
@@ -97,7 +99,8 @@ describe('OrdersService', () => {
       setupMocks();
       mockCouponsService.validate.mockResolvedValue({ id: 'c1', code: 'SAVE3', discountType: 'FIXED', discountValue: 3 });
       mockPrisma.coupon.update.mockResolvedValue({});
-      await service.create('staff1', { ...dto, couponCode: 'SAVE3' });
+      // totalAmount after $3 off = 5 → payment must match
+      await service.create('staff1', { ...dto, payments: [{ method: 'QR' as const, amount: 5 }], couponCode: 'SAVE3' });
       expect(mockPrisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ subtotal: 8, discountAmount: 3, totalAmount: 5 }),
@@ -109,7 +112,8 @@ describe('OrdersService', () => {
       setupMocks();
       mockCouponsService.validate.mockResolvedValue({ id: 'c1', code: 'BIG', discountType: 'FIXED', discountValue: 50 });
       mockPrisma.coupon.update.mockResolvedValue({});
-      await service.create('staff1', { ...dto, couponCode: 'BIG' });
+      // totalAmount capped at 0 → payment must match
+      await service.create('staff1', { ...dto, payments: [{ method: 'QR' as const, amount: 0 }], couponCode: 'BIG' });
       expect(mockPrisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ subtotal: 8, discountAmount: 8, totalAmount: 0 }),
@@ -135,7 +139,7 @@ describe('OrdersService', () => {
       setupMocks();
       mockCouponsService.validate.mockResolvedValue({ id: 'c1', code: 'SAVE10', discountType: 'PERCENTAGE', discountValue: 10 });
       mockPrisma.coupon.update.mockResolvedValue({});
-      await service.create('staff1', { ...dto, couponCode: 'SAVE10' });
+      await service.create('staff1', { ...dto, payments: [{ method: 'QR' as const, amount: 7.2 }], couponCode: 'SAVE10' });
       expect(mockPrisma.coupon.update).toHaveBeenCalledWith({
         where: { id: 'c1' },
         data: { usesCount: { increment: 1 } },
@@ -154,13 +158,11 @@ describe('OrdersService', () => {
       mockPrisma.topping.findMany.mockResolvedValue([topping1, topping2]);
       mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
       mockPrisma.order.create.mockResolvedValue(fakeOrder);
-
+      // basePrice=7, priceModifier=0, 2 NORMAL included, 2 NORMAL selected → subtotal=7
       await service.create('staff1', {
-        paymentMethod: 'QR',
+        payments: [{ method: 'QR' as const, amount: 7 }],
         items: [{ productId: 'p2', flavorId: 'f2', toppings: [{ toppingId: 't1', quantity: 1 }, { toppingId: 't2', quantity: 1 }] }],
       });
-
-      // basePrice=7, priceModifier=0, 2 NORMAL included, 2 NORMAL selected → toppingCost=0 → subtotal=7
       expect(mockPrisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ subtotal: 7, totalAmount: 7 }) }),
       );
@@ -172,14 +174,11 @@ describe('OrdersService', () => {
       mockPrisma.topping.findMany.mockResolvedValue([topping1, topping2]);
       mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
       mockPrisma.order.create.mockResolvedValue(fakeOrder);
-
+      // t1 qty=2 consumes 2 free; t2 qty=1 charged 1×1=1 → subtotal=8
       await service.create('staff1', {
-        paymentMethod: 'QR',
+        payments: [{ method: 'QR' as const, amount: 8 }],
         items: [{ productId: 'p2', flavorId: 'f2', toppings: [{ toppingId: 't1', quantity: 2 }, { toppingId: 't2', quantity: 1 }] }],
       });
-
-      // t1 qty=2: consumes 2 free slots (remainingFree → 0); t2 qty=1: charged 1×1.00=1.00
-      // subtotal = 7 + 1 = 8
       expect(mockPrisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ subtotal: 8, totalAmount: 8 }) }),
       );
@@ -191,13 +190,11 @@ describe('OrdersService', () => {
       mockPrisma.topping.findMany.mockResolvedValue([topping3]);
       mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
       mockPrisma.order.create.mockResolvedValue(fakeOrder);
-
+      // PREMIUM charged 1×2=2 → subtotal=9
       await service.create('staff1', {
-        paymentMethod: 'QR',
+        payments: [{ method: 'QR' as const, amount: 9 }],
         items: [{ productId: 'p2', flavorId: 'f2', toppings: [{ toppingId: 't3', quantity: 1 }] }],
       });
-
-      // PREMIUM does not consume NORMAL allowance → charged 1×2.00=2.00 → subtotal=9
       expect(mockPrisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ subtotal: 9, totalAmount: 9 }) }),
       );
@@ -211,6 +208,41 @@ describe('OrdersService', () => {
       expect(toppingsCreated).toEqual([
         { toppingId: 't1', quantity: 2, unitPriceAtSale: 0.5 },
         { toppingId: 't2', quantity: 1, unitPriceAtSale: 1 },
+      ]);
+    });
+
+    // ── NEW TESTS ──────────────────────────────────────────────────────────────
+
+    it('rejects duplicate payment methods', async () => {
+      setupMocks();
+      await expect(
+        service.create('staff1', {
+          ...dto,
+          payments: [{ method: 'QR' as const, amount: 4 }, { method: 'QR' as const, amount: 4 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects when payment amounts do not sum to totalAmount', async () => {
+      setupMocks();
+      await expect(
+        service.create('staff1', {
+          ...dto,
+          payments: [{ method: 'QR' as const, amount: 5 }], // subtotal is 8, not 5
+        }),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('accepts two payments summing to totalAmount', async () => {
+      setupMocks();
+      await service.create('staff1', {
+        ...dto,
+        payments: [{ method: 'QR' as const, amount: 5 }, { method: 'CASH' as const, amount: 3 }],
+      });
+      const createCall = mockPrisma.order.create.mock.calls[0][0];
+      expect(createCall.data.payments.create).toEqual([
+        { paymentMethod: 'QR',   amount: 5 },
+        { paymentMethod: 'CASH', amount: 3 },
       ]);
     });
   });
