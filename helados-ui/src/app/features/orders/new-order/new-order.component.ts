@@ -152,6 +152,25 @@ export class NewOrderComponent implements OnInit {
     this.step = 4;
   }
 
+  removeItem(index: number) {
+    this.items.splice(index, 1);
+  }
+
+  editItem(index: number) {
+    const item = this.items.splice(index, 1)[0];
+    this.draftProduct = item.product;
+    if (item.product.directSale) {
+      // Direct-sale items have nothing to edit — just removed, user can re-add
+      return;
+    }
+    this.draftFlavor = item.flavor ?? undefined;
+    this.toppingQties.clear();
+    for (const ts of item.toppings) {
+      this.toppingQties.set(ts.topping.id, ts.quantity);
+    }
+    this.step = item.flavor ? 3 : 2;
+  }
+
   validateCoupon() {
     const code = this.couponCode.trim().toUpperCase();
     if (!code) return;
@@ -230,4 +249,8 @@ export class NewOrderComponent implements OnInit {
   }
 
   formatPrice(n: number | string) { return `$${Number(n).toFixed(2)}`; }
+
+  toppingSummary(item: FinishedItem): string {
+    return item.toppings.map(ts => `${ts.topping.name} ×${ts.quantity}`).join(', ');
+  }
 }

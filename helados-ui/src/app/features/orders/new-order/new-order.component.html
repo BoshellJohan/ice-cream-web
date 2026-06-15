@@ -73,12 +73,27 @@
             <div class="px-4 py-3 border-b border-gray-800">
               <p class="text-white font-semibold text-sm">Carrito</p>
             </div>
-            @for (item of items; track $index) {
-              <div class="flex justify-between items-center px-4 py-2.5 border-b border-gray-800 last:border-0 text-sm">
-                <span class="text-gray-300">
-                  {{ item.product.name }}{{ item.flavor ? ' — ' + item.flavor.name : '' }}
-                </span>
-                <span class="text-purple-400 font-medium">{{ formatPrice(item.itemTotal + item.toppingTotal) }}</span>
+            @for (item of items; track $index; let i = $index) {
+              <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-800 text-sm">
+                <div class="flex-1 min-w-0">
+                  <span class="text-gray-300">
+                    {{ item.product.name }}{{ item.flavor ? ' — ' + item.flavor.name : '' }}
+                  </span>
+                  @if (item.toppings.length > 0) {
+                    <p class="text-gray-500 text-xs mt-0.5">{{ toppingSummary(item) }}</p>
+                  }
+                </div>
+                <span class="text-purple-400 font-medium shrink-0">{{ formatPrice(item.itemTotal + item.toppingTotal) }}</span>
+                @if (!item.product.directSale) {
+                  <button (click)="editItem(i)"
+                          class="shrink-0 text-gray-400 hover:text-white px-2 py-1 rounded-lg hover:bg-gray-700 touch-manipulation text-xs">
+                    Editar
+                  </button>
+                }
+                <button (click)="removeItem(i)"
+                        class="shrink-0 text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-gray-700 touch-manipulation text-xs">
+                  ✕
+                </button>
               </div>
             }
             <div class="flex justify-between items-center px-4 py-3 text-sm font-bold">
