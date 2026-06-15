@@ -22,7 +22,6 @@ An internal web application for an ice cream startup. Used by 4–5 staff member
 
 ---
 
-## Roles
 
 | Role | Access |
 |---|---|
