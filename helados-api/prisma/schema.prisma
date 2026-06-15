@@ -17,6 +17,7 @@ enum ProductType {
   CONTAINER
   CUP
   BOWL
+  DRINK
 }
 
 enum ProductSize {

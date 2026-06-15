@@ -5,7 +5,7 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
-  @IsEnum(['CONE', 'CONTAINER', 'CUP', 'BOWL'])
+  @IsEnum(['CONE', 'CONTAINER', 'CUP', 'BOWL', 'DRINK'])
   type: 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL';
 
   @IsEnum(['SMALL', 'MEDIUM', 'LARGE'])

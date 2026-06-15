@@ -46,7 +46,7 @@ export class CatalogComponent implements OnInit {
     directSale: false,
   };
 
-  productTypes: ProductType[] = ['CONE', 'CONTAINER', 'CUP', 'BOWL'];
+  productTypes: ProductType[] = ['CONE', 'CONTAINER', 'CUP', 'BOWL', 'DRINK'];
   productSizes: ProductSize[] = ['SMALL', 'MEDIUM', 'LARGE'];
 
   readonly tabs = [

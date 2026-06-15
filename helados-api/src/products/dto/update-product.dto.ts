@@ -7,7 +7,7 @@ export class UpdateProductDto {
   name?: string;
 
   @IsOptional()
-  @IsEnum(['CONE', 'CONTAINER', 'CUP', 'BOWL'])
+  @IsEnum(['CONE', 'CONTAINER', 'CUP', 'BOWL', 'DRINK'])
   type?: 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL';
 
   @IsOptional()

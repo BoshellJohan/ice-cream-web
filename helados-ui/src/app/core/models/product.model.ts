@@ -1,4 +1,4 @@
-export type ProductType = 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL';
+export type ProductType = 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL' | 'DRINK';
 export type ProductSize = 'SMALL' | 'MEDIUM' | 'LARGE';
 
 export interface Product {
