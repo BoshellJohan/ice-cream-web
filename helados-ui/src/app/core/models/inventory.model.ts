@@ -2,10 +2,14 @@ export type SnapshotPeriod = 'MORNING' | 'NIGHT';
 
 export interface InventoryLine {
   id: string;
+  productType: string | null;
+  productSize: string | null;
   productId: string | null;
   product: { id: string; name: string; type: string } | null;
   label: string | null;
   quantity: number;
+  soldSince?: number;
+  remaining?: number;
 }
 
 export interface InventoryEdit {
@@ -44,6 +48,8 @@ export interface SnapshotPair {
 }
 
 export interface InventoryLinePayload {
+  productType?: string;
+  productSize?: string;
   productId?: string;
   label?: string;
   quantity: number;
