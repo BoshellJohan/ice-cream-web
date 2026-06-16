@@ -7,12 +7,12 @@ export class UpdateProductDto {
   name?: string;
 
   @IsOptional()
-  @IsEnum(['CONE', 'CONTAINER', 'CUP', 'BOWL', 'DRINK'])
-  type?: 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL' | 'DRINK';
+  @IsEnum(['CONE', 'CONTAINER', 'BEVERAGE'])
+  type?: 'CONE' | 'CONTAINER' | 'BEVERAGE';
 
   @IsOptional()
-  @IsEnum(['SMALL', 'MEDIUM', 'LARGE'])
-  size?: 'SMALL' | 'MEDIUM' | 'LARGE';
+  @IsEnum(['SMALL', 'MEDIUM', 'LARGE', 'OZ4', 'OZ5', 'OZ6', 'OZ7', 'OZ8'])
+  size?: 'SMALL' | 'MEDIUM' | 'LARGE' | 'OZ4' | 'OZ5' | 'OZ6' | 'OZ7' | 'OZ8';
 
   @IsOptional()
   @IsNumber()
@@ -28,7 +28,6 @@ export class UpdateProductDto {
   @IsBoolean()
   directSale?: boolean;
 
-  // Both null → clears the allowance. One set without the other → 400.
   @ValidateIf(o => o.includedToppingQty != null)
   @IsDefined()
   @IsEnum(['NORMAL', 'PREMIUM'])

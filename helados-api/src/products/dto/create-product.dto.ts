@@ -5,11 +5,12 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
-  @IsEnum(['CONE', 'CONTAINER', 'CUP', 'BOWL', 'DRINK'])
-  type: 'CONE' | 'CONTAINER' | 'CUP' | 'BOWL' | 'DRINK';
+  @IsEnum(['CONE', 'CONTAINER', 'BEVERAGE'])
+  type: 'CONE' | 'CONTAINER' | 'BEVERAGE';
 
-  @IsEnum(['SMALL', 'MEDIUM', 'LARGE'])
-  size: 'SMALL' | 'MEDIUM' | 'LARGE';
+  @IsOptional()
+  @IsEnum(['SMALL', 'MEDIUM', 'LARGE', 'OZ4', 'OZ5', 'OZ6', 'OZ7', 'OZ8'])
+  size?: 'SMALL' | 'MEDIUM' | 'LARGE' | 'OZ4' | 'OZ5' | 'OZ6' | 'OZ7' | 'OZ8';
 
   @IsNumber()
   @Min(0)
@@ -24,8 +25,6 @@ export class CreateProductDto {
   @IsBoolean()
   directSale?: boolean;
 
-  // Both must be set together or both absent.
-  // @ValidateIf triggers when the *other* field is non-null, enforcing co-presence.
   @ValidateIf(o => o.includedToppingQty != null)
   @IsDefined()
   @IsEnum(['NORMAL', 'PREMIUM'])
