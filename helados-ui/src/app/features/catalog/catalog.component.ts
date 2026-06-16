@@ -10,6 +10,15 @@ import { Product, ProductType, ProductSize } from '../../core/models/product.mod
 import { Flavor } from '../../core/models/flavor.model';
 import { Topping, ToppingType, ToppingTypeConfig } from '../../core/models/topping.model';
 
+export const TYPE_LABELS: Record<string, string> = {
+  CONE: 'Cono', CONTAINER: 'Envase', BEVERAGE: 'Bebida',
+};
+
+export const SIZE_LABELS: Record<string, string> = {
+  SMALL: 'Pequeño', MEDIUM: 'Mediano', LARGE: 'Grande',
+  OZ4: '4 oz', OZ5: '5 oz', OZ6: '6 oz', OZ7: '7 oz', OZ8: '8 oz',
+};
+
 type Tab = 'products' | 'flavors' | 'toppings';
 type CatalogItem = (Product | Flavor | Topping) & { basePrice?: number; priceModifier?: number; unitPrice?: number };
 
@@ -44,7 +53,7 @@ export class CatalogComponent implements OnInit {
     useCustomPrice: false,
     customPrice: 0,
     type: 'CONE' as ProductType,
-    size: 'SMALL' as ProductSize,
+    size: 'SMALL' as ProductSize | null,
     imageUrl: '',
     directSale: false,
     includedToppingType: null as ToppingType | null,
@@ -55,9 +64,14 @@ export class CatalogComponent implements OnInit {
   editingTypeConfig: ToppingType | null = null;
   typeConfigDraft = 0;
 
-  productTypes: ProductType[] = ['CONE', 'CONTAINER', 'CUP', 'BOWL', 'DRINK'];
-  productSizes: ProductSize[] = ['SMALL', 'MEDIUM', 'LARGE'];
+  productTypes: ProductType[] = ['CONE', 'CONTAINER', 'BEVERAGE'];
   toppingTypes: ToppingType[] = ['NORMAL', 'PREMIUM'];
+
+  get availableSizes(): ProductSize[] {
+    if (this.form.type === 'CONE')      return ['SMALL', 'MEDIUM', 'LARGE'];
+    if (this.form.type === 'CONTAINER') return ['OZ4', 'OZ5', 'OZ6', 'OZ7', 'OZ8'];
+    return [];
+  }
 
   readonly tabs = [
     { key: 'products' as Tab, label: 'Productos' },
@@ -109,6 +123,22 @@ export class CatalogComponent implements OnInit {
     });
   }
 
+  onTypeChange() {
+    const sizes = this.availableSizes;
+    this.form.size = sizes.length > 0 ? sizes[0] : null;
+    if (this.form.type === 'BEVERAGE') {
+      this.form.directSale = true;
+      this.form.includedToppingType = null;
+      this.form.includedToppingQty  = null;
+    }
+  }
+
+  productSubtitle(item: Product): string {
+    const typePart = TYPE_LABELS[item.type] ?? item.type;
+    if (!item.size) return typePart;
+    return `${typePart} · ${SIZE_LABELS[item.size] ?? item.size}`;
+  }
+
   openCreate() {
     this.editingId = null;
     this.form = {
@@ -132,7 +162,7 @@ export class CatalogComponent implements OnInit {
       useCustomPrice: topping.customPrice != null,
       customPrice: Number(topping.customPrice ?? 0),
       type: (item as Product).type ?? 'CONE',
-      size: (item as Product).size ?? 'SMALL',
+      size: (item as Product).size ?? null,
       imageUrl: item.imageUrl ?? '',
       directSale: (item as Product).directSale ?? false,
       includedToppingType: (item as Product).includedToppingType ?? null,
@@ -151,14 +181,14 @@ export class CatalogComponent implements OnInit {
     const obs: Observable<unknown> = this.activeTab === 'products'
       ? (this.editingId
           ? this.productSvc.update(this.editingId, {
-              name: this.form.name, type: this.form.type, size: this.form.size,
+              name: this.form.name, type: this.form.type, size: this.form.size ?? undefined,
               basePrice: this.form.basePrice, imageUrl: this.form.imageUrl || undefined,
               directSale: this.form.directSale,
               includedToppingType: this.form.includedToppingType,
               includedToppingQty: this.form.includedToppingType ? this.form.includedToppingQty : null,
             })
           : this.productSvc.create({
-              name: this.form.name, type: this.form.type, size: this.form.size,
+              name: this.form.name, type: this.form.type, size: this.form.size ?? undefined,
               basePrice: this.form.basePrice, imageUrl: this.form.imageUrl || undefined,
               directSale: this.form.directSale,
               includedToppingType: this.form.includedToppingType ?? undefined,

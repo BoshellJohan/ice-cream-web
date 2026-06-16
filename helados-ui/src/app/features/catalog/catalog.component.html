@@ -73,6 +73,9 @@
 
           <div class="p-3">
             <p class="font-bold text-white text-sm truncate">{{ item.name }}</p>
+            @if (activeTab === 'products') {
+              <p class="text-gray-500 text-xs mt-0.5">{{ productSubtitle($any(item)) }}</p>
+            }
             <p class="text-purple-400 text-sm mt-0.5">{{ priceLabel(item) }}</p>
             <div class="flex flex-wrap gap-1 mt-1">
               @if (!item.active) {
@@ -127,60 +130,68 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-sm text-gray-300 mb-1">Tipo</label>
-              <select [(ngModel)]="form.type" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <select [(ngModel)]="form.type" (ngModelChange)="onTypeChange()" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
                 @for (t of productTypes; track t) {
-                  <option [value]="t">{{ t }}</option>
+                  <option [value]="t">{{ t === 'CONE' ? 'Cono' : t === 'CONTAINER' ? 'Envase' : 'Bebida' }}</option>
                 }
               </select>
             </div>
-            <div>
-              <label class="block text-sm text-gray-300 mb-1">Tamaño</label>
-              <select [(ngModel)]="form.size" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
-                @for (s of productSizes; track s) {
-                  <option [value]="s">{{ s }}</option>
-                }
-              </select>
-            </div>
+            @if (availableSizes.length > 0) {
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Tamaño</label>
+                <select [(ngModel)]="form.size" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  @for (s of availableSizes; track s) {
+                    <option [value]="s">{{ s === 'SMALL' ? 'Pequeño' : s === 'MEDIUM' ? 'Mediano' : s === 'LARGE' ? 'Grande' : s.toLowerCase().replace('oz', '') + ' oz' }}</option>
+                  }
+                </select>
+              </div>
+            }
           </div>
           <div>
             <label class="block text-sm text-gray-300 mb-1">Precio base ($)</label>
             <input [(ngModel)]="form.basePrice" type="number" min="0" step="0.01" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" />
           </div>
-          <label class="flex items-center gap-3 cursor-pointer select-none">
-            <div class="relative">
-              <input type="checkbox" [(ngModel)]="form.directSale" class="sr-only" />
-              <div class="w-10 h-6 rounded-full transition-colors"
-                   [class.bg-purple-600]="form.directSale"
-                   [class.bg-gray-700]="!form.directSale">
-                <div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform"
-                     [class.translate-x-4]="form.directSale"></div>
+
+          @if (form.type !== 'BEVERAGE') {
+            <label class="flex items-center gap-3 cursor-pointer select-none">
+              <div class="relative">
+                <input type="checkbox" [(ngModel)]="form.directSale" class="sr-only" />
+                <div class="w-10 h-6 rounded-full transition-colors"
+                     [class.bg-purple-600]="form.directSale"
+                     [class.bg-gray-700]="!form.directSale">
+                  <div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                       [class.translate-x-4]="form.directSale"></div>
+                </div>
               </div>
-            </div>
-            <div>
-              <p class="text-sm text-white font-medium">Venta directa</p>
-              <p class="text-xs text-gray-400">Se agrega al pedido sin seleccionar sabor ni toppings</p>
-            </div>
-          </label>
+              <div>
+                <p class="text-sm text-white font-medium">Venta directa</p>
+                <p class="text-xs text-gray-400">Se agrega al pedido sin seleccionar sabor ni toppings</p>
+              </div>
+            </label>
 
-          <!-- Included topping allowance -->
-          <div>
-            <label class="block text-sm text-gray-300 mb-1">Topping incluido</label>
-            <select [(ngModel)]="form.includedToppingType" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
-              <option [ngValue]="null">Ninguno</option>
-              <option value="NORMAL">Normal</option>
-              <option value="PREMIUM">Premium</option>
-            </select>
-          </div>
-
-          @if (form.includedToppingType) {
             <div>
-              <label class="block text-sm text-gray-300 mb-1">Cantidad incluida</label>
-              <input
-                [(ngModel)]="form.includedToppingQty"
-                type="number" min="1" step="1"
-                class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <label class="block text-sm text-gray-300 mb-1">Topping incluido</label>
+              <select [(ngModel)]="form.includedToppingType" class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <option [ngValue]="null">Ninguno</option>
+                <option value="NORMAL">Normal</option>
+                <option value="PREMIUM">Premium</option>
+              </select>
             </div>
+
+            @if (form.includedToppingType) {
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Cantidad incluida</label>
+                <input
+                  [(ngModel)]="form.includedToppingQty"
+                  type="number" min="1" step="1"
+                  class="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            }
+          } @else {
+            <p class="text-xs text-purple-400 bg-purple-500/10 rounded-lg px-3 py-2">
+              Las bebidas se venden de forma directa y se rastrean individualmente en inventario.
+            </p>
           }
         }
 
