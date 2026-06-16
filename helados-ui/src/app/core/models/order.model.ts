@@ -7,6 +7,12 @@ export interface OrderPaymentEntry {
   amount: number;
 }
 
+export interface OrderPayment {
+  id: string;
+  paymentMethod: PaymentMethod;
+  amount: number;
+}
+
 export interface OrderItemTopping {
   id: string;
   toppingId: string;
@@ -30,7 +36,7 @@ export interface Order {
   staff: { id: string; name: string };
   couponId: string | null;
   coupon: { id: string; code: string } | null;
-  payments: OrderPaymentEntry[];
+  payments: OrderPayment[];
   subtotal: number;
   discountAmount: number;
   totalAmount: number;
