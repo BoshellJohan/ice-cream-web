@@ -63,10 +63,7 @@
 
 <!-- ── SIDE PANEL ──────────────────────────────────────────────── -->
 @if (panelMode !== 'none') {
-  <!-- Backdrop -->
   <div class="fixed inset-0 bg-black/60 z-40" (click)="closePanel()"></div>
-
-  <!-- Panel -->
   <div class="fixed right-0 top-0 h-full w-full max-w-lg bg-gray-900 z-50 flex flex-col shadow-2xl">
 
     <!-- ── NEW SNAPSHOT ───────────────────────────────────────── -->
@@ -77,7 +74,6 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-6 space-y-5">
-        <!-- Date + Period -->
         <div class="flex gap-3">
           <div class="flex-1 space-y-1">
             <label class="text-gray-400 text-xs">Fecha</label>
@@ -94,20 +90,50 @@
           </div>
         </div>
 
-        <!-- Qty rows -->
-        <div class="space-y-2">
-          @for (row of rows; track row.display) {
+        <!-- Conos -->
+        <div class="space-y-1">
+          <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Conos</p>
+          @for (row of coneRows; track row.productSize) {
             <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
               <span class="flex-1 text-white text-sm">{{ row.display }}</span>
               <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
               <input [(ngModel)]="row.qty" type="number" min="0" step="1"
-                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" />
+                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none text-sm" />
               <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
             </div>
           }
         </div>
 
-        <!-- Notes -->
+        <!-- Envases -->
+        <div class="space-y-1">
+          <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Envases</p>
+          @for (row of containerRows; track row.productSize) {
+            <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
+              <span class="flex-1 text-white text-sm">{{ row.display }}</span>
+              <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
+              <input [(ngModel)]="row.qty" type="number" min="0" step="1"
+                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none text-sm" />
+              <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
+            </div>
+          }
+        </div>
+
+        <!-- Bebidas -->
+        @if (beverageRows.length > 0) {
+          <div class="space-y-1">
+            <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Bebidas</p>
+            @for (row of beverageRows; track row.productId) {
+              <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
+                <span class="flex-1 text-white text-sm">{{ row.display }}</span>
+                <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
+                <input [(ngModel)]="row.qty" type="number" min="0" step="1"
+                       class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none text-sm" />
+                <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
+              </div>
+            }
+          </div>
+        }
+
         <textarea [(ngModel)]="newNotes" rows="2" placeholder="Notas (opcional)"
                   class="w-full bg-gray-800 text-white rounded-xl px-4 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"></textarea>
       </div>
@@ -143,15 +169,67 @@
       } @else if (selectedSnapshot) {
         <div class="flex-1 overflow-y-auto p-6 space-y-5">
 
-          <!-- Lines -->
-          <div class="space-y-2">
-            @for (line of selectedSnapshot.lines; track line.id) {
-              <div class="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-2.5">
-                <span class="text-white text-sm">{{ lineName(line) }}</span>
-                <span class="text-purple-400 font-semibold text-sm">{{ formatQty(line.quantity) }}</span>
-              </div>
-            }
-          </div>
+          <!-- Conos -->
+          @if (viewConeLines.length > 0) {
+            <div class="space-y-1">
+              <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Conos</p>
+              @for (line of viewConeLines; track line.id) {
+                <div class="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-2.5">
+                  <span class="text-white text-sm">{{ sizeLabelFor(line.productSize) }}</span>
+                  <span class="text-purple-400 font-semibold text-sm">{{ formatQty(line.quantity) }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Envases -->
+          @if (viewContainerLines.length > 0) {
+            <div class="space-y-1">
+              <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Envases</p>
+              @for (line of viewContainerLines; track line.id) {
+                <div class="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-2.5">
+                  <span class="text-white text-sm">{{ sizeLabelFor(line.productSize) }}</span>
+                  <span class="text-purple-400 font-semibold text-sm">{{ formatQty(line.quantity) }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Bebidas (with overlay) -->
+          @if (viewBeverageLines.length > 0) {
+            <div class="space-y-1">
+              <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Bebidas</p>
+              @for (line of viewBeverageLines; track line.id) {
+                <div class="bg-gray-800 rounded-xl px-4 py-2.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-white text-sm">{{ line.product?.name ?? '—' }}</span>
+                    <span class="text-gray-300 text-sm font-semibold">{{ formatQty(line.quantity) }} inicial</span>
+                  </div>
+                  @if (line.soldSince !== undefined) {
+                    <div class="flex items-center justify-between mt-1 text-xs">
+                      <span class="text-gray-500">− {{ line.soldSince }} vendidas</span>
+                      <span [class]="remainingClass(line.remaining)" class="font-semibold">
+                        = {{ line.remaining }} restantes
+                      </span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Free-form labels -->
+          @if (viewLabelLines.length > 0) {
+            <div class="space-y-1">
+              <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Otros</p>
+              @for (line of viewLabelLines; track line.id) {
+                <div class="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-2.5">
+                  <span class="text-white text-sm">{{ line.label }}</span>
+                  <span class="text-purple-400 font-semibold text-sm">{{ formatQty(line.quantity) }}</span>
+                </div>
+              }
+            </div>
+          }
 
           @if (selectedSnapshot.notes) {
             <div class="bg-gray-800 rounded-xl px-4 py-3">
@@ -160,7 +238,6 @@
             </div>
           }
 
-          <!-- Audit log -->
           @if (selectedSnapshot.edits.length > 0) {
             <div class="space-y-2">
               <h3 class="text-amber-400 text-sm font-semibold flex items-center gap-2">
@@ -201,35 +278,62 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-6 space-y-5">
-
         <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-300">
           Estás editando un registro existente. El cambio quedará registrado en el historial de ediciones.
         </div>
 
-        <!-- Qty rows -->
-        <div class="space-y-2">
-          @for (row of editRows; track row.display) {
+        <!-- Conos -->
+        <div class="space-y-1">
+          <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Conos</p>
+          @for (row of coneRows; track row.productSize) {
             <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
               <span class="flex-1 text-white text-sm">{{ row.display }}</span>
               <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
               <input [(ngModel)]="row.qty" type="number" min="0" step="1"
-                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" />
+                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none text-sm" />
               <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
             </div>
           }
         </div>
 
-        <!-- Notes -->
+        <!-- Envases -->
+        <div class="space-y-1">
+          <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Envases</p>
+          @for (row of containerRows; track row.productSize) {
+            <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
+              <span class="flex-1 text-white text-sm">{{ row.display }}</span>
+              <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
+              <input [(ngModel)]="row.qty" type="number" min="0" step="1"
+                     class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none text-sm" />
+              <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
+            </div>
+          }
+        </div>
+
+        <!-- Bebidas -->
+        @if (beverageRows.length > 0) {
+          <div class="space-y-1">
+            <p class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Bebidas</p>
+            @for (row of beverageRows; track row.productId) {
+              <div class="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5">
+                <span class="flex-1 text-white text-sm">{{ row.display }}</span>
+                <button (click)="dec(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">−</button>
+                <input [(ngModel)]="row.qty" type="number" min="0" step="1"
+                       class="w-16 bg-gray-700 text-white text-center rounded-lg px-2 py-1 border border-gray-600 focus:outline-none text-sm" />
+                <button (click)="inc(row, 1)" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold touch-manipulation">+</button>
+              </div>
+            }
+          </div>
+        }
+
         <textarea [(ngModel)]="editNotes" rows="2" placeholder="Notas (opcional)"
                   class="w-full bg-gray-800 text-white rounded-xl px-4 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"></textarea>
 
-        <!-- Reason -->
         <div class="space-y-1">
           <label class="text-gray-400 text-xs">Motivo de la corrección (aparecerá en el historial)</label>
           <textarea [(ngModel)]="editReason" rows="2" placeholder="Ej. Error al contar, se corrige valor real"
                     class="w-full bg-gray-800 text-white rounded-xl px-4 py-2.5 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"></textarea>
         </div>
-
       </div>
 
       <div class="px-6 py-4 border-t border-gray-800 shrink-0 space-y-2">
