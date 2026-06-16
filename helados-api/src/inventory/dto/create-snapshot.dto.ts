@@ -13,7 +13,7 @@ export class InventoryLineDto {
 
   @IsOptional()
   @IsEnum(['SMALL', 'MEDIUM', 'LARGE', 'OZ4', 'OZ5', 'OZ6', 'OZ7', 'OZ8'])
-  productSize?: string;
+  productSize?: 'SMALL' | 'MEDIUM' | 'LARGE' | 'OZ4' | 'OZ5' | 'OZ6' | 'OZ7' | 'OZ8';
 
   @IsOptional()
   @IsUUID()
