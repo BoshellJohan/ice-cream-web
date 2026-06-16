@@ -197,35 +197,95 @@
     @if (step === 4) {
       <div class="flex-1 overflow-y-auto p-6 space-y-6">
 
-        <!-- Payment method (mandatory) -->
+        <!-- Payment mode -->
         <div class="space-y-3">
           <h2 class="text-xl font-bold text-white">Método de pago</h2>
           <div class="flex gap-3">
             <button
-              (click)="paymentMethod = 'QR'"
+              (click)="selectPaymentMode('QR')"
               class="flex-1 py-4 rounded-2xl font-bold text-lg border-2 transition-colors touch-manipulation"
-              [class.bg-purple-600]="paymentMethod === 'QR'"
-              [class.border-purple-600]="paymentMethod === 'QR'"
-              [class.text-white]="paymentMethod === 'QR'"
-              [class.bg-gray-900]="paymentMethod !== 'QR'"
-              [class.border-gray-700]="paymentMethod !== 'QR'"
-              [class.text-gray-300]="paymentMethod !== 'QR'"
-            >
-              📱 QR
-            </button>
+              [class.bg-purple-600]="paymentMode === 'QR'"
+              [class.border-purple-600]="paymentMode === 'QR'"
+              [class.text-white]="paymentMode === 'QR'"
+              [class.bg-gray-900]="paymentMode !== 'QR'"
+              [class.border-gray-700]="paymentMode !== 'QR'"
+              [class.text-gray-300]="paymentMode !== 'QR'"
+            >📱 Solo QR</button>
             <button
-              (click)="paymentMethod = 'CASH'"
+              (click)="selectPaymentMode('CASH')"
               class="flex-1 py-4 rounded-2xl font-bold text-lg border-2 transition-colors touch-manipulation"
-              [class.bg-purple-600]="paymentMethod === 'CASH'"
-              [class.border-purple-600]="paymentMethod === 'CASH'"
-              [class.text-white]="paymentMethod === 'CASH'"
-              [class.bg-gray-900]="paymentMethod !== 'CASH'"
-              [class.border-gray-700]="paymentMethod !== 'CASH'"
-              [class.text-gray-300]="paymentMethod !== 'CASH'"
-            >
-              💵 Efectivo
-            </button>
+              [class.bg-purple-600]="paymentMode === 'CASH'"
+              [class.border-purple-600]="paymentMode === 'CASH'"
+              [class.text-white]="paymentMode === 'CASH'"
+              [class.bg-gray-900]="paymentMode !== 'CASH'"
+              [class.border-gray-700]="paymentMode !== 'CASH'"
+              [class.text-gray-300]="paymentMode !== 'CASH'"
+            >💵 Solo Efectivo</button>
+            <button
+              (click)="selectPaymentMode('SPLIT')"
+              class="flex-1 py-4 rounded-2xl font-bold text-lg border-2 transition-colors touch-manipulation"
+              [class.bg-purple-600]="paymentMode === 'SPLIT'"
+              [class.border-purple-600]="paymentMode === 'SPLIT'"
+              [class.text-white]="paymentMode === 'SPLIT'"
+              [class.bg-gray-900]="paymentMode !== 'SPLIT'"
+              [class.border-dashed]="paymentMode !== 'SPLIT'"
+              [class.border-gray-700]="paymentMode !== 'SPLIT'"
+              [class.text-gray-300]="paymentMode !== 'SPLIT'"
+            >⚡ Dividido</button>
           </div>
+
+          <!-- Split sub-UI -->
+          @if (paymentMode === 'SPLIT') {
+            <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
+              <p class="text-gray-400 text-sm">¿Cuánto paga con...?</p>
+              <div class="flex gap-2">
+                <button
+                  (click)="selectSplitMethod('QR')"
+                  class="flex-1 py-2.5 rounded-xl font-semibold border-2 transition-colors touch-manipulation"
+                  [class.bg-purple-600]="splitMethod === 'QR'"
+                  [class.border-purple-600]="splitMethod === 'QR'"
+                  [class.text-white]="splitMethod === 'QR'"
+                  [class.bg-gray-800]="splitMethod !== 'QR'"
+                  [class.border-gray-600]="splitMethod !== 'QR'"
+                  [class.text-gray-300]="splitMethod !== 'QR'"
+                >📱 QR</button>
+                <button
+                  (click)="selectSplitMethod('CASH')"
+                  class="flex-1 py-2.5 rounded-xl font-semibold border-2 transition-colors touch-manipulation"
+                  [class.bg-purple-600]="splitMethod === 'CASH'"
+                  [class.border-purple-600]="splitMethod === 'CASH'"
+                  [class.text-white]="splitMethod === 'CASH'"
+                  [class.bg-gray-800]="splitMethod !== 'CASH'"
+                  [class.border-gray-600]="splitMethod !== 'CASH'"
+                  [class.text-gray-300]="splitMethod !== 'CASH'"
+                >💵 Efectivo</button>
+              </div>
+              @if (splitMethod) {
+                <div>
+                  <label class="block text-gray-400 text-sm mb-1">
+                    Monto en {{ splitMethod === 'QR' ? 'QR' : 'Efectivo' }}
+                  </label>
+                  <input
+                    [(ngModel)]="splitAmount"
+                    type="number"
+                    [min]="0.01"
+                    [max]="total - 0.01"
+                    step="0.01"
+                    placeholder="0.00"
+                    class="w-full bg-gray-800 text-white text-xl font-bold rounded-xl px-4 py-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                @if (splitAmount && splitAmount > 0 && splitAmount < total) {
+                  <div class="flex justify-between items-center bg-gray-800 rounded-xl px-4 py-3">
+                    <span class="text-gray-400 text-sm">
+                      Resto en {{ splitOtherMethod === 'QR' ? 'QR' : 'Efectivo' }}
+                    </span>
+                    <span class="text-purple-300 font-bold text-lg">{{ formatPrice(splitRemainder) }}</span>
+                  </div>
+                }
+              }
+            </div>
+          }
         </div>
 
         <!-- Coupon -->
@@ -243,9 +303,7 @@
               (click)="validateCoupon()"
               [disabled]="couponLoading || !couponCode.trim()"
               class="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-5 py-3 rounded-xl font-semibold touch-manipulation"
-            >
-              {{ couponLoading ? '...' : 'Validar' }}
-            </button>
+            >{{ couponLoading ? '...' : 'Validar' }}</button>
           </div>
           @if (couponResult) {
             <div class="bg-green-900/40 border border-green-700 rounded-xl p-4 flex items-center justify-between">
@@ -288,10 +346,10 @@
         </button>
         <button
           (click)="step = 5"
-          [disabled]="!paymentMethod"
+          [disabled]="!isPaymentReady"
           class="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 rounded-xl font-semibold touch-manipulation"
         >
-          {{ paymentMethod ? 'Confirmar →' : 'Selecciona método de pago' }}
+          {{ isPaymentReady ? 'Confirmar →' : 'Selecciona método de pago' }}
         </button>
       </div>
     }
@@ -301,11 +359,15 @@
       <div class="flex-1 overflow-y-auto p-5 space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-bold text-white">Resumen del pedido</h2>
-          @if (paymentMethod === 'QR') {
-            <span class="text-sm font-medium px-3 py-1 rounded-full bg-purple-500/20 text-purple-300">📱 QR</span>
-          } @else {
-            <span class="text-sm font-medium px-3 py-1 rounded-full bg-green-500/20 text-green-300">💵 Efectivo</span>
-          }
+          <div class="flex flex-wrap gap-2">
+            @for (p of previewPayments; track p.method) {
+              @if (p.method === 'QR') {
+                <span class="text-sm font-medium px-3 py-1 rounded-full bg-purple-500/20 text-purple-300">📱 QR {{ formatPrice(p.amount) }}</span>
+              } @else {
+                <span class="text-sm font-medium px-3 py-1 rounded-full bg-green-500/20 text-green-300">💵 Efectivo {{ formatPrice(p.amount) }}</span>
+              }
+            }
+          </div>
         </div>
         @for (item of items; track $index) {
           <div class="bg-gray-900 rounded-xl p-4 space-y-1">

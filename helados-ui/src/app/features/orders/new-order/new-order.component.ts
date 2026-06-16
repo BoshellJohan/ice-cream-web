@@ -11,7 +11,7 @@ import { Product } from '../../../core/models/product.model';
 import { Flavor } from '../../../core/models/flavor.model';
 import { Topping } from '../../../core/models/topping.model';
 import { CouponValidation } from '../../../core/models/coupon.model';
-import { CreateOrderPayload, PaymentMethod } from '../../../core/models/order.model';
+import { CreateOrderPayload, OrderPaymentEntry, PaymentMethod } from '../../../core/models/order.model';
 
 interface FinishedItem {
   product: Product;
@@ -49,7 +49,10 @@ export class NewOrderComponent implements OnInit {
   draftFlavor?: Flavor;
   toppingQties = new Map<string, number>();
 
-  paymentMethod: PaymentMethod | null = null;
+  // Payment state
+  paymentMode: 'QR' | 'CASH' | 'SPLIT' | null = null;
+  splitMethod: PaymentMethod | null = null;
+  splitAmount: number | null = null;
 
   couponCode = '';
   couponResult: CouponValidation | null = null;
@@ -81,7 +84,6 @@ export class NewOrderComponent implements OnInit {
     this.draftFlavor  = undefined;
     this.toppingQties.clear();
     if (product.directSale) {
-      // Skip flavor and toppings steps for direct-sale products
       this.items.push({
         product,
         flavor:       null,
@@ -168,7 +170,6 @@ export class NewOrderComponent implements OnInit {
     const item = this.items.splice(index, 1)[0];
     this.draftProduct = item.product;
     if (item.product.directSale) {
-      // Direct-sale items have nothing to edit — just removed, user can re-add
       return;
     }
     this.draftFlavor = item.flavor ?? undefined;
@@ -214,12 +215,56 @@ export class NewOrderComponent implements OnInit {
     return Math.round((this.subtotal - this.discountAmount) * 100) / 100;
   }
 
+  get splitOtherMethod(): PaymentMethod {
+    return this.splitMethod === 'QR' ? 'CASH' : 'QR';
+  }
+
+  get splitRemainder(): number {
+    if (this.splitAmount === null) return this.total;
+    return Math.round((this.total - this.splitAmount) * 100) / 100;
+  }
+
+  get isPaymentReady(): boolean {
+    if (this.paymentMode === 'QR' || this.paymentMode === 'CASH') return true;
+    if (this.paymentMode === 'SPLIT') {
+      return this.splitMethod !== null &&
+             this.splitAmount !== null &&
+             this.splitAmount > 0 &&
+             this.splitAmount < this.total;
+    }
+    return false;
+  }
+
+  get previewPayments(): OrderPaymentEntry[] {
+    if (this.paymentMode === 'QR' || this.paymentMode === 'CASH') {
+      return [{ method: this.paymentMode, amount: this.total }];
+    }
+    if (this.paymentMode === 'SPLIT' && this.splitMethod && this.splitAmount) {
+      return [
+        { method: this.splitMethod,      amount: this.splitAmount },
+        { method: this.splitOtherMethod, amount: this.splitRemainder },
+      ];
+    }
+    return [];
+  }
+
+  selectPaymentMode(mode: 'QR' | 'CASH' | 'SPLIT') {
+    this.paymentMode = mode;
+    this.splitMethod = null;
+    this.splitAmount = null;
+  }
+
+  selectSplitMethod(method: PaymentMethod) {
+    this.splitMethod = method;
+    this.splitAmount = null;
+  }
+
   placeOrder() {
-    if (!this.paymentMethod) return;
+    if (!this.isPaymentReady) return;
     this.submitting  = true;
     this.submitError = '';
     const payload: CreateOrderPayload = {
-      paymentMethod: this.paymentMethod,
+      payments: this.previewPayments,
       items: this.items.map(item => ({
         productId: item.product.id,
         flavorId:  item.flavor?.id,
@@ -242,18 +287,20 @@ export class NewOrderComponent implements OnInit {
   }
 
   resetOrder() {
-    this.step          = 1;
-    this.items         = [];
-    this.draftProduct  = undefined;
-    this.draftFlavor   = undefined;
+    this.step         = 1;
+    this.items        = [];
+    this.draftProduct = undefined;
+    this.draftFlavor  = undefined;
     this.toppingQties.clear();
-    this.paymentMethod = null;
-    this.couponCode    = '';
-    this.couponResult  = null;
-    this.couponError   = '';
-    this.notes         = '';
-    this.submitError   = '';
-    this.orderSuccess  = false;
+    this.paymentMode  = null;
+    this.splitMethod  = null;
+    this.splitAmount  = null;
+    this.couponCode   = '';
+    this.couponResult = null;
+    this.couponError  = '';
+    this.notes        = '';
+    this.submitError  = '';
+    this.orderSuccess = false;
   }
 
   formatPrice(n: number | string) { return `$${Number(n).toFixed(2)}`; }

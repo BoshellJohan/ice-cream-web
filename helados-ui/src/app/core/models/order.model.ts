@@ -2,6 +2,11 @@ import { DiscountType } from './coupon.model';
 
 export type PaymentMethod = 'QR' | 'CASH';
 
+export interface OrderPaymentEntry {
+  method: PaymentMethod;
+  amount: number;
+}
+
 export interface OrderItemTopping {
   id: string;
   toppingId: string;
@@ -25,7 +30,7 @@ export interface Order {
   staff: { id: string; name: string };
   couponId: string | null;
   coupon: { id: string; code: string } | null;
-  paymentMethod: PaymentMethod;
+  payments: OrderPaymentEntry[];
   subtotal: number;
   discountAmount: number;
   totalAmount: number;
@@ -46,7 +51,7 @@ export interface CreateOrderItemPayload {
 }
 
 export interface CreateOrderPayload {
-  paymentMethod: PaymentMethod;
+  payments: OrderPaymentEntry[];
   items: CreateOrderItemPayload[];
   couponCode?: string;
   notes?: string;
