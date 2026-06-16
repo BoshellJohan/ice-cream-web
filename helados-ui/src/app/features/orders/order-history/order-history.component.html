@@ -49,6 +49,12 @@
                 @if (order.coupon) {
                   <span class="text-purple-400">· 🏷 {{ order.coupon.code }}</span>
                 }
+                <span>·</span>
+                @if (order.payments.length === 1) {
+                  <span>{{ order.payments[0].method === 'QR' ? '📱 QR' : '💵 Efectivo' }}</span>
+                } @else {
+                  <span>📱 QR + 💵 Efectivo</span>
+                }
               </div>
             </div>
             <div class="text-right shrink-0">
@@ -95,6 +101,15 @@
                 <div class="flex justify-between text-white font-bold border-t border-gray-700 pt-1 mt-1">
                   <span>Total</span>
                   <span>{{ formatPrice(order.totalAmount) }}</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                  @for (p of order.payments; track p.method) {
+                    @if (p.method === 'QR') {
+                      <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">📱 QR {{ formatPrice(p.amount) }}</span>
+                    } @else {
+                      <span class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">💵 Efectivo {{ formatPrice(p.amount) }}</span>
+                    }
+                  }
                 </div>
               </div>
 
