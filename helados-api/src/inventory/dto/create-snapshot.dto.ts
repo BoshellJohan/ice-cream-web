@@ -8,6 +8,14 @@ export enum SnapshotPeriod {
 
 export class InventoryLineDto {
   @IsOptional()
+  @IsEnum(['CONE', 'CONTAINER', 'BEVERAGE'])
+  productType?: 'CONE' | 'CONTAINER' | 'BEVERAGE';
+
+  @IsOptional()
+  @IsEnum(['SMALL', 'MEDIUM', 'LARGE', 'OZ4', 'OZ5', 'OZ6', 'OZ7', 'OZ8'])
+  productSize?: string;
+
+  @IsOptional()
   @IsUUID()
   productId?: string;
 

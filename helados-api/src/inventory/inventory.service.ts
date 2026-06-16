@@ -8,7 +8,6 @@ const snapshotInclude = {
     include: {
       product: { select: { id: true, name: true, type: true } },
     },
-    orderBy: { label: 'asc' as const },
   },
   user:  { select: { id: true, name: true } },
   edits: {
@@ -44,9 +43,11 @@ export class InventoryService {
           notes:   dto.notes,
           lines: {
             create: dto.lines.map(l => ({
-              productId: l.productId,
-              label:     l.label,
-              quantity:  l.quantity,
+              productType: l.productType,
+              productSize: l.productSize,
+              productId:   l.productId,
+              label:       l.label,
+              quantity:    l.quantity,
             })),
           },
         },
@@ -72,14 +73,14 @@ export class InventoryService {
       include: snapshotInclude,
     });
     if (!snapshot) throw new NotFoundException(`Inventario ${id} no encontrado`);
-    return snapshot;
+    return this.withBeverageOverlay(snapshot);
   }
 
   async updateSnapshot(id: string, staffId: string, dto: UpdateSnapshotDto) {
     const snapshot = await this.prisma.inventorySnapshot.findUnique({ where: { id } });
     if (!snapshot) throw new NotFoundException(`Inventario ${id} no encontrado`);
 
-    return this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       await tx.inventoryLine.deleteMany({ where: { snapshotId: id } });
 
       await tx.inventorySnapshot.update({
@@ -88,9 +89,11 @@ export class InventoryService {
           notes: dto.notes,
           lines: {
             create: dto.lines.map(l => ({
-              productId: l.productId,
-              label:     l.label,
-              quantity:  l.quantity,
+              productType: l.productType,
+              productSize: l.productSize,
+              productId:   l.productId,
+              label:       l.label,
+              quantity:    l.quantity,
             })),
           },
         },
@@ -99,9 +102,10 @@ export class InventoryService {
       await tx.inventoryEdit.create({
         data: { snapshotId: id, editedBy: staffId, reason: dto.reason },
       });
-
-      return tx.inventorySnapshot.findUnique({ where: { id }, include: snapshotInclude });
     });
+
+    const updated = await this.prisma.inventorySnapshot.findUnique({ where: { id }, include: snapshotInclude });
+    return this.withBeverageOverlay(updated!);
   }
 
   async getSnapshots(date: string) {
@@ -122,6 +126,34 @@ export class InventoryService {
       }),
     ]);
 
-    return { morning, night };
+    return {
+      morning: morning ? await this.withBeverageOverlay(morning) : null,
+      night:   night   ? await this.withBeverageOverlay(night)   : null,
+    };
+  }
+
+  private async withBeverageOverlay<T extends { takenAt: Date; lines: Array<{ productId: string | null; quantity: unknown }> }>(snapshot: T) {
+    const beverageLines = snapshot.lines.filter(l => l.productId);
+    if (beverageLines.length === 0) return snapshot;
+
+    const soldCounts = await this.prisma.orderItem.groupBy({
+      by: ['productId'],
+      _count: { id: true },
+      where: {
+        productId: { in: beverageLines.map(l => l.productId as string) },
+        order: { createdAt: { gte: snapshot.takenAt } },
+      },
+    });
+
+    const soldMap = new Map(soldCounts.map(g => [g.productId as string, g._count.id]));
+
+    return {
+      ...snapshot,
+      lines: snapshot.lines.map(l => {
+        if (!l.productId) return l;
+        const sold = soldMap.get(l.productId) ?? 0;
+        return { ...l, soldSince: sold, remaining: Number(l.quantity) - sold };
+      }),
+    };
   }
 }
