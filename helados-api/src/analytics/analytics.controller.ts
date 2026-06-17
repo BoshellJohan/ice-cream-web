@@ -23,6 +23,11 @@ export class AnalyticsController {
     return this.analytics.getTopItems(query.from, query.to);
   }
 
+  @Get('reconciliation-summary')
+  getReconciliationSummary(@Query() query: AnalyticsQueryDto) {
+    return this.analytics.getReconciliationSummary(query.from, query.to);
+  }
+
   @Get('daily')
   getDaily(@Query() query: AnalyticsDailyQueryDto) {
     return this.analytics.getDaily(query.date);
