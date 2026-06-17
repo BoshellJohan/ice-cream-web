@@ -1,0 +1,177 @@
+<div class="min-h-screen bg-gray-950 p-5 space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center gap-4">
+    <a routerLink="/dashboard" class="text-purple-400 hover:text-purple-300 text-sm">← Dashboard</a>
+    <h1 class="text-2xl font-bold text-white">Análisis diario</h1>
+  </div>
+
+  <!-- Controls -->
+  @if (!comparing) {
+    <div class="flex items-center gap-3 flex-wrap">
+      <input
+        [(ngModel)]="dateA"
+        type="date"
+        class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+      />
+      <button
+        (click)="loadA()"
+        class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg font-medium touch-manipulation"
+      >Cargar</button>
+      <button
+        (click)="startComparing()"
+        class="ml-auto border border-dashed border-purple-700 text-purple-400 hover:text-purple-300 text-sm px-4 py-2 rounded-lg touch-manipulation"
+      >+ Comparar con otro día</button>
+    </div>
+  } @else {
+    <div class="flex items-center gap-4 flex-wrap">
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 text-sm font-medium w-12">Día A</span>
+        <input
+          [(ngModel)]="dateA"
+          type="date"
+          class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+        />
+        <button
+          (click)="loadA()"
+          class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-2 rounded-lg touch-manipulation"
+        >Cargar</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 text-sm font-medium w-12">Día B</span>
+        <input
+          [(ngModel)]="dateB"
+          type="date"
+          class="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+        />
+        <button
+          (click)="loadB()"
+          class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-2 rounded-lg touch-manipulation"
+        >Cargar</button>
+      </div>
+      <button
+        (click)="stopComparing()"
+        class="ml-auto text-gray-500 hover:text-gray-300 text-sm touch-manipulation"
+      >✕ Quitar comparación</button>
+    </div>
+  }
+
+  <!-- Single-day metrics -->
+  @if (!comparing) {
+    @if (loadingA) {
+      <p class="text-gray-400">Cargando...</p>
+    } @else if (errorA) {
+      <p class="text-red-400">{{ errorA }}</p>
+    } @else if (dataA) {
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-gray-900 rounded-2xl p-5">
+          <p class="text-gray-400 text-sm">Pedidos</p>
+          <p class="text-3xl font-bold text-white mt-1">{{ dataA.orders }}</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-5">
+          <p class="text-gray-400 text-sm">Ítems</p>
+          <p class="text-3xl font-bold text-white mt-1">{{ dataA.items }}</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-5">
+          <p class="text-gray-400 text-sm">Total</p>
+          <p class="text-3xl font-bold text-purple-400 mt-1">{{ formatPrice(dataA.totalRevenue) }}</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-900 rounded-2xl p-5">
+          <p class="text-gray-400 text-sm">💵 Efectivo</p>
+          <p class="text-3xl font-bold text-green-400 mt-1">{{ formatPrice(dataA.cashRevenue) }}</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-5">
+          <p class="text-gray-400 text-sm">📱 QR</p>
+          <p class="text-3xl font-bold text-purple-400 mt-1">{{ formatPrice(dataA.qrRevenue) }}</p>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Comparison table -->
+  @if (comparing) {
+    <div class="bg-gray-900 rounded-2xl p-5">
+      <div class="grid grid-cols-3 gap-4">
+
+        <!-- Column headers -->
+        <div></div>
+        <div class="text-center text-sm font-semibold text-gray-300 pb-2 border-b border-gray-800">Día A</div>
+        <div class="text-center text-sm font-semibold text-gray-300 pb-2 border-b border-gray-800">Día B</div>
+
+        <!-- Pedidos -->
+        <div class="text-gray-400 text-sm flex items-center py-3 border-b border-gray-800">Pedidos</div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingA) { <span class="text-gray-500">...</span> }
+          @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataA) { <span class="text-white font-bold text-xl">{{ dataA.orders }}</span> }
+        </div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingB) { <span class="text-gray-500">...</span> }
+          @else if (errorB) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataB) { <span class="text-white font-bold text-xl">{{ dataB.orders }}</span> }
+          @else { <span class="text-gray-600">—</span> }
+        </div>
+
+        <!-- Ítems -->
+        <div class="text-gray-400 text-sm flex items-center py-3 border-b border-gray-800">Ítems</div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingA) { <span class="text-gray-500">...</span> }
+          @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataA) { <span class="text-white font-bold text-xl">{{ dataA.items }}</span> }
+        </div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingB) { <span class="text-gray-500">...</span> }
+          @else if (errorB) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataB) { <span class="text-white font-bold text-xl">{{ dataB.items }}</span> }
+          @else { <span class="text-gray-600">—</span> }
+        </div>
+
+        <!-- Total -->
+        <div class="text-gray-400 text-sm flex items-center py-3 border-b border-gray-800">Total</div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingA) { <span class="text-gray-500">...</span> }
+          @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataA) { <span class="text-purple-400 font-bold text-xl">{{ formatPrice(dataA.totalRevenue) }}</span> }
+        </div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingB) { <span class="text-gray-500">...</span> }
+          @else if (errorB) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataB) { <span class="text-purple-400 font-bold text-xl">{{ formatPrice(dataB.totalRevenue) }}</span> }
+          @else { <span class="text-gray-600">—</span> }
+        </div>
+
+        <!-- Efectivo -->
+        <div class="text-gray-400 text-sm flex items-center py-3 border-b border-gray-800">💵 Efectivo</div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingA) { <span class="text-gray-500">...</span> }
+          @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataA) { <span class="text-green-400 font-bold text-xl">{{ formatPrice(dataA.cashRevenue) }}</span> }
+        </div>
+        <div class="text-center py-3 border-b border-gray-800">
+          @if (loadingB) { <span class="text-gray-500">...</span> }
+          @else if (errorB) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataB) { <span class="text-green-400 font-bold text-xl">{{ formatPrice(dataB.cashRevenue) }}</span> }
+          @else { <span class="text-gray-600">—</span> }
+        </div>
+
+        <!-- QR -->
+        <div class="text-gray-400 text-sm flex items-center py-3">📱 QR</div>
+        <div class="text-center py-3">
+          @if (loadingA) { <span class="text-gray-500">...</span> }
+          @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataA) { <span class="text-purple-400 font-bold text-xl">{{ formatPrice(dataA.qrRevenue) }}</span> }
+        </div>
+        <div class="text-center py-3">
+          @if (loadingB) { <span class="text-gray-500">...</span> }
+          @else if (errorB) { <span class="text-red-400 text-sm">Error</span> }
+          @else if (dataB) { <span class="text-purple-400 font-bold text-xl">{{ formatPrice(dataB.qrRevenue) }}</span> }
+          @else { <span class="text-gray-600">—</span> }
+        </div>
+
+      </div>
+    </div>
+  }
+
+</div>
