@@ -26,6 +26,12 @@ export const routes: Routes = [
     ],
   },
   {
+    path: 'dashboard/daily',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./features/analytics/daily/daily.component').then((m) => m.DailyComponent),
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard, adminGuard],
     loadComponent: () =>
