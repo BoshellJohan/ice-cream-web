@@ -28,11 +28,13 @@ export class DailyComponent implements OnInit {
   actualQrA:   number | null = null;
   savedReconA: ReconciliationData | null = null;
   savingA = false;
+  saveErrorA = false;
 
   actualCashB: number | null = null;
   actualQrB:   number | null = null;
   savedReconB: ReconciliationData | null = null;
   savingB = false;
+  saveErrorB = false;
 
   ngOnInit() {
     this.dateA = new Date().toISOString().split('T')[0];
@@ -75,6 +77,7 @@ export class DailyComponent implements OnInit {
           this.actualQrA = recon.actualQr;
         }
       },
+      error: () => {},
     });
   }
 
@@ -90,24 +93,27 @@ export class DailyComponent implements OnInit {
           this.actualQrB = recon.actualQr;
         }
       },
+      error: () => {},
     });
   }
 
   saveReconciliationA() {
     if (this.actualCashA === null || this.actualQrA === null) return;
     this.savingA = true;
+    this.saveErrorA = false;
     this.analytics.saveReconciliation(this.dateA, this.actualCashA, this.actualQrA).subscribe({
       next: (recon) => { this.savedReconA = recon; this.savingA = false; },
-      error: () => { this.savingA = false; },
+      error: () => { this.saveErrorA = true; this.savingA = false; },
     });
   }
 
   saveReconciliationB() {
     if (this.actualCashB === null || this.actualQrB === null) return;
     this.savingB = true;
+    this.saveErrorB = false;
     this.analytics.saveReconciliation(this.dateB, this.actualCashB, this.actualQrB).subscribe({
       next: (recon) => { this.savedReconB = recon; this.savingB = false; },
-      error: () => { this.savingB = false; },
+      error: () => { this.saveErrorB = true; this.savingB = false; },
     });
   }
 
@@ -127,6 +133,7 @@ export class DailyComponent implements OnInit {
     this.savedReconB = null;
     this.actualCashB = null;
     this.actualQrB = null;
+    this.saveErrorB = false;
   }
 
   // Variance = actual - system (null when no input or no system data)
