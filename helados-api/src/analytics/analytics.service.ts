@@ -124,6 +124,57 @@ export class AnalyticsService {
     };
   }
 
+  async getReconciliationSummary(from: string, to: string) {
+    const range = this.dateRange(from, to);
+
+    const recons = await this.prisma.dailyReconciliation.findMany({
+      where: { date: range },
+      select: { date: true, actualCash: true, actualQr: true },
+    });
+
+    const coveredDays = new Set(recons.map((r: { date: Date }) => r.date.toISOString().split('T')[0]));
+
+    let actualCash = 0;
+    let actualQr = 0;
+    for (const r of recons) {
+      actualCash += Number(r.actualCash);
+      actualQr += Number(r.actualQr);
+    }
+
+    const payments = await this.prisma.orderPayment.findMany({
+      where: { order: { createdAt: range } },
+      select: { paymentMethod: true, amount: true, order: { select: { createdAt: true } } },
+    });
+
+    let systemCash = 0;
+    let systemQr = 0;
+    for (const p of payments) {
+      const day = p.order.createdAt.toISOString().split('T')[0];
+      if (!coveredDays.has(day)) continue;
+      if (p.paymentMethod === 'CASH') systemCash += Number(p.amount);
+      else if (p.paymentMethod === 'QR') systemQr += Number(p.amount);
+    }
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+    systemCash = round(systemCash);
+    systemQr = round(systemQr);
+    actualCash = round(actualCash);
+    actualQr = round(actualQr);
+
+    const daysInRange = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1;
+
+    return {
+      daysReconciled: coveredDays.size,
+      daysInRange,
+      systemCash,
+      systemQr,
+      systemTotal: round(systemCash + systemQr),
+      actualCash,
+      actualQr,
+      actualTotal: round(actualCash + actualQr),
+    };
+  }
+
   async saveReconciliation(date: string, actualCash: number, actualQr: number, userId: string) {
     const record = await this.prisma.dailyReconciliation.upsert({
       where:  { date: new Date(date) },

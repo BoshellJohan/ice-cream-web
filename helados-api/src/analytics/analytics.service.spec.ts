@@ -6,10 +6,10 @@ const mockPrisma = {
   order:               { findMany: jest.fn(), count: jest.fn() },
   orderItem:           { groupBy: jest.fn(), count: jest.fn() },
   orderItemTopping:    { groupBy: jest.fn() },
-  orderPayment:        { groupBy: jest.fn() },
+  orderPayment:        { groupBy: jest.fn(), findMany: jest.fn() },
   flavor:              { findMany: jest.fn() },
   topping:             { findMany: jest.fn() },
-  dailyReconciliation: { findUnique: jest.fn(), upsert: jest.fn() },
+  dailyReconciliation: { findUnique: jest.fn(), upsert: jest.fn(), findMany: jest.fn() },
 };
 
 describe('AnalyticsService', () => {
@@ -175,6 +175,74 @@ describe('AnalyticsService', () => {
       const result = await service.getReconciliation('2026-06-01');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getReconciliationSummary', () => {
+    it('aggregates system and actual only for days that have reconciliation', async () => {
+      // Day 2026-06-15 has reconciliation; 2026-06-16 does not.
+      mockPrisma.dailyReconciliation.findMany.mockResolvedValue([
+        { date: new Date('2026-06-15'), actualCash: '100.00', actualQr: '50.00' },
+      ]);
+      mockPrisma.orderPayment.findMany.mockResolvedValue([
+        { paymentMethod: 'CASH', amount: '90.00', order: { createdAt: new Date('2026-06-15T10:00:00Z') } },
+        { paymentMethod: 'QR',   amount: '45.00', order: { createdAt: new Date('2026-06-15T12:00:00Z') } },
+        { paymentMethod: 'CASH', amount: '999.00', order: { createdAt: new Date('2026-06-16T10:00:00Z') } },
+      ]);
+
+      const result = await service.getReconciliationSummary('2026-06-15', '2026-06-16');
+
+      expect(result.systemCash).toBeCloseTo(90.0, 2);
+      expect(result.systemQr).toBeCloseTo(45.0, 2);
+      expect(result.systemTotal).toBeCloseTo(135.0, 2);
+      expect(result.actualCash).toBeCloseTo(100.0, 2);
+      expect(result.actualQr).toBeCloseTo(50.0, 2);
+      expect(result.actualTotal).toBeCloseTo(150.0, 2);
+      expect(result.daysReconciled).toBe(1);
+    });
+
+    it('sums per-method across multiple covered days', async () => {
+      mockPrisma.dailyReconciliation.findMany.mockResolvedValue([
+        { date: new Date('2026-06-15'), actualCash: '100.00', actualQr: '50.00' },
+        { date: new Date('2026-06-16'), actualCash: '20.00',  actualQr: '10.00' },
+      ]);
+      mockPrisma.orderPayment.findMany.mockResolvedValue([
+        { paymentMethod: 'CASH', amount: '90.00', order: { createdAt: new Date('2026-06-15T10:00:00Z') } },
+        { paymentMethod: 'QR',   amount: '45.00', order: { createdAt: new Date('2026-06-15T12:00:00Z') } },
+        { paymentMethod: 'CASH', amount: '15.00', order: { createdAt: new Date('2026-06-16T09:00:00Z') } },
+      ]);
+
+      const result = await service.getReconciliationSummary('2026-06-15', '2026-06-16');
+
+      expect(result.systemCash).toBeCloseTo(105.0, 2);
+      expect(result.systemQr).toBeCloseTo(45.0, 2);
+      expect(result.systemTotal).toBeCloseTo(150.0, 2);
+      expect(result.actualTotal).toBeCloseTo(180.0, 2);
+      expect(result.daysReconciled).toBe(2);
+    });
+
+    it('returns zeros and daysReconciled 0 when no reconciliation in range', async () => {
+      mockPrisma.dailyReconciliation.findMany.mockResolvedValue([]);
+      mockPrisma.orderPayment.findMany.mockResolvedValue([
+        { paymentMethod: 'CASH', amount: '90.00', order: { createdAt: new Date('2026-06-15T10:00:00Z') } },
+      ]);
+
+      const result = await service.getReconciliationSummary('2026-06-15', '2026-06-16');
+
+      expect(result.systemCash).toBe(0);
+      expect(result.systemQr).toBe(0);
+      expect(result.systemTotal).toBe(0);
+      expect(result.actualTotal).toBe(0);
+      expect(result.daysReconciled).toBe(0);
+    });
+
+    it('computes daysInRange inclusively', async () => {
+      mockPrisma.dailyReconciliation.findMany.mockResolvedValue([]);
+      mockPrisma.orderPayment.findMany.mockResolvedValue([]);
+
+      const result = await service.getReconciliationSummary('2026-06-11', '2026-06-17');
+
+      expect(result.daysInRange).toBe(7);
     });
   });
 
