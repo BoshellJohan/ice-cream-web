@@ -106,6 +106,7 @@
           @if (loadingA) { <span class="text-gray-500">...</span> }
           @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
           @else if (dataA) { <span class="text-white font-bold text-xl">{{ dataA.orders }}</span> }
+          @else { <span class="text-gray-600">—</span> }
         </div>
         <div class="text-center py-3 border-b border-gray-800">
           @if (loadingB) { <span class="text-gray-500">...</span> }
@@ -120,6 +121,7 @@
           @if (loadingA) { <span class="text-gray-500">...</span> }
           @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
           @else if (dataA) { <span class="text-white font-bold text-xl">{{ dataA.items }}</span> }
+          @else { <span class="text-gray-600">—</span> }
         </div>
         <div class="text-center py-3 border-b border-gray-800">
           @if (loadingB) { <span class="text-gray-500">...</span> }
@@ -134,6 +136,7 @@
           @if (loadingA) { <span class="text-gray-500">...</span> }
           @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
           @else if (dataA) { <span class="text-purple-400 font-bold text-xl">{{ formatPrice(dataA.totalRevenue) }}</span> }
+          @else { <span class="text-gray-600">—</span> }
         </div>
         <div class="text-center py-3 border-b border-gray-800">
           @if (loadingB) { <span class="text-gray-500">...</span> }
@@ -148,6 +151,7 @@
           @if (loadingA) { <span class="text-gray-500">...</span> }
           @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
           @else if (dataA) { <span class="text-green-400 font-bold text-xl">{{ formatPrice(dataA.cashRevenue) }}</span> }
+          @else { <span class="text-gray-600">—</span> }
         </div>
         <div class="text-center py-3 border-b border-gray-800">
           @if (loadingB) { <span class="text-gray-500">...</span> }
@@ -162,6 +166,7 @@
           @if (loadingA) { <span class="text-gray-500">...</span> }
           @else if (errorA) { <span class="text-red-400 text-sm">Error</span> }
           @else if (dataA) { <span class="text-purple-400 font-bold text-xl">{{ formatPrice(dataA.qrRevenue) }}</span> }
+          @else { <span class="text-gray-600">—</span> }
         </div>
         <div class="text-center py-3">
           @if (loadingB) { <span class="text-gray-500">...</span> }
