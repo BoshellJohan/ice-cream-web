@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AnalyticsService } from '../../../core/services/analytics.service';
@@ -8,7 +8,7 @@ import { DailyData, ReconciliationData } from '../../../core/models/analytics.mo
 @Component({
   selector: 'app-daily',
   standalone: true,
-  imports: [FormsModule, RouterLink, DatePipe],
+  imports: [FormsModule, RouterLink, DatePipe, NgClass],
   templateUrl: './daily.component.html',
 })
 export class DailyComponent implements OnInit {
@@ -46,6 +46,7 @@ export class DailyComponent implements OnInit {
     if (!this.dateA) return;
     this.loadingA = true;
     this.errorA = '';
+    this.saveErrorA = false;
     this.dataA = null;
     this.analytics.getDaily(this.dateA).subscribe({
       next: (data) => { this.dataA = data; this.loadingA = false; },
@@ -58,6 +59,7 @@ export class DailyComponent implements OnInit {
     if (!this.dateB) return;
     this.loadingB = true;
     this.errorB = '';
+    this.saveErrorB = false;
     this.dataB = null;
     this.analytics.getDaily(this.dateB).subscribe({
       next: (data) => { this.dataB = data; this.loadingB = false; },
