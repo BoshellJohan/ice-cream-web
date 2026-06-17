@@ -4,6 +4,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
+import { AnalyticsDailyQueryDto } from './dto/analytics-daily-query.dto';
 
 @Controller('analytics')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -19,5 +20,10 @@ export class AnalyticsController {
   @Get('top-items')
   getTopItems(@Query() query: AnalyticsQueryDto) {
     return this.analytics.getTopItems(query.from, query.to);
+  }
+
+  @Get('daily')
+  getDaily(@Query() query: AnalyticsDailyQueryDto) {
+    return this.analytics.getDaily(query.date);
   }
 }
