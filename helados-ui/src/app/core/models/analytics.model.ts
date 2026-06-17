@@ -39,3 +39,14 @@ export interface ReconciliationData {
   actualQr:   number;
   updatedAt:  string;
 }
+
+export interface ReconciliationSummaryData {
+  daysReconciled: number;
+  daysInRange:    number;
+  systemCash:  number;
+  systemQr:    number;
+  systemTotal: number;
+  actualCash:  number;
+  actualQr:    number;
+  actualTotal: number;
+}

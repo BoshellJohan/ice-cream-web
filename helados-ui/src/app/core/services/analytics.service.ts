@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { DailyData, ReconciliationData, SummaryData, TopItemsData } from '../models/analytics.model';
+import { DailyData, ReconciliationData, ReconciliationSummaryData, SummaryData, TopItemsData } from '../models/analytics.model';
 
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
@@ -30,5 +30,10 @@ export class AnalyticsService {
 
   saveReconciliation(date: string, actualCash: number, actualQr: number) {
     return this.http.put<ReconciliationData>(`${this.url}/reconciliation`, { date, actualCash, actualQr });
+  }
+
+  getReconciliationSummary(from: string, to: string) {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<ReconciliationSummaryData>(`${this.url}/reconciliation-summary`, { params });
   }
 }
