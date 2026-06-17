@@ -45,6 +45,63 @@
       </div>
     </div>
 
+    <!-- Cash reconciliation comparison -->
+    @if (reconSummary) {
+      <div class="bg-gray-900 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-white font-semibold">Conciliación de caja</h2>
+          <span class="text-gray-400 text-xs bg-gray-800 rounded-full px-3 py-1">
+            {{ reconSummary.daysReconciled }} de {{ reconSummary.daysInRange }} días
+          </span>
+        </div>
+
+        @if (reconSummary.daysReconciled > 0) {
+          <!-- Sistema / Real / Diferencia -->
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-gray-800 rounded-xl p-4">
+              <p class="text-gray-400 text-sm">Sistema</p>
+              <p class="text-2xl font-bold text-white mt-1">{{ formatPrice(reconSummary.systemTotal) }}</p>
+              <p class="text-gray-500 text-xs mt-1">registrado</p>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-4">
+              <p class="text-gray-400 text-sm">Real</p>
+              <p class="text-2xl font-bold text-white mt-1">{{ formatPrice(reconSummary.actualTotal) }}</p>
+              <p class="text-gray-500 text-xs mt-1">conciliado</p>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-4">
+              <p class="text-gray-400 text-sm">Diferencia</p>
+              <p class="text-2xl font-bold mt-1" [ngClass]="varianceClass(totalVariance())">{{ formatVariance(totalVariance()) }}</p>
+              @if (reconSummary.systemTotal !== 0) {
+                <p class="text-xs mt-1" [ngClass]="varianceClass(totalVariance())">
+                  {{ ((totalVariance()! / reconSummary.systemTotal) * 100).toFixed(1) }}%
+                </p>
+              }
+            </div>
+          </div>
+
+          <!-- Per-method breakdown -->
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center gap-2">
+              <span class="text-gray-300 w-28 shrink-0">💵 Efectivo</span>
+              <span class="text-gray-500">Sistema {{ formatPrice(reconSummary.systemCash) }}</span>
+              <span class="text-gray-600">·</span>
+              <span class="text-gray-500">Real {{ formatPrice(reconSummary.actualCash) }}</span>
+              <span class="ml-auto font-medium" [ngClass]="varianceClass(cashVariance())">{{ formatVariance(cashVariance()) }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-300 w-28 shrink-0">📱 QR</span>
+              <span class="text-gray-500">Sistema {{ formatPrice(reconSummary.systemQr) }}</span>
+              <span class="text-gray-600">·</span>
+              <span class="text-gray-500">Real {{ formatPrice(reconSummary.actualQr) }}</span>
+              <span class="ml-auto font-medium" [ngClass]="varianceClass(qrVariance())">{{ formatVariance(qrVariance()) }}</span>
+            </div>
+          </div>
+        } @else {
+          <p class="text-gray-500 text-sm">Sin conciliación en este período. Registra el efectivo/QR real en Análisis diario.</p>
+        }
+      </div>
+    }
+
     <!-- Daily revenue -->
     @if (summary.dailyRevenue.length > 0) {
       <div class="bg-gray-900 rounded-2xl p-5">
