@@ -33,3 +33,9 @@ export interface DailyData {
   cashRevenue:  number;
   qrRevenue:    number;
 }
+
+export interface ReconciliationData {
+  actualCash: number;
+  actualQr:   number;
+  updatedAt:  string;
+}
