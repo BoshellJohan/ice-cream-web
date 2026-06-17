@@ -195,3 +195,12 @@ model InventoryEdit {
   editedAt   DateTime          @default(now())
   reason     String?
 }
+
+model DailyReconciliation {
+  id         String   @id @default(uuid())
+  date       DateTime @unique @db.Date
+  actualCash Decimal  @db.Decimal(10, 2)
+  actualQr   Decimal  @db.Decimal(10, 2)
+  updatedBy  String
+  updatedAt  DateTime @updatedAt
+}
