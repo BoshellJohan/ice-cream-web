@@ -87,6 +87,58 @@
           <p class="text-3xl font-bold text-purple-400 mt-1">{{ formatPrice(dataA.qrRevenue) }}</p>
         </div>
       </div>
+
+      <!-- Cash reconciliation -->
+      <div class="bg-gray-900 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-white font-semibold">Conciliación de caja</h2>
+          @if (savedReconA?.updatedAt) {
+            <span class="text-gray-500 text-xs">Última edición: {{ savedReconA!.updatedAt | date:'short' }}</span>
+          }
+        </div>
+
+        <div class="grid grid-cols-4 gap-3 items-center">
+          <div class="text-gray-400 text-sm"></div>
+          <div class="text-gray-400 text-xs text-center">Sistema</div>
+          <div class="text-gray-400 text-xs text-center">Real</div>
+          <div class="text-gray-400 text-xs text-center">Diferencia</div>
+
+          <!-- Efectivo -->
+          <div class="text-gray-300 text-sm">💵 Efectivo</div>
+          <div class="text-white text-center">{{ formatPrice(dataA.cashRevenue) }}</div>
+          <input
+            [(ngModel)]="actualCashA"
+            type="number"
+            min="0"
+            step="0.01"
+            class="bg-gray-800 text-white text-sm text-center rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <div class="text-center font-medium" [class]="varianceClass(cashVarianceA())">{{ formatVariance(cashVarianceA()) }}</div>
+
+          <!-- QR -->
+          <div class="text-gray-300 text-sm">📱 QR</div>
+          <div class="text-white text-center">{{ formatPrice(dataA.qrRevenue) }}</div>
+          <input
+            [(ngModel)]="actualQrA"
+            type="number"
+            min="0"
+            step="0.01"
+            class="bg-gray-800 text-white text-sm text-center rounded-lg px-2 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <div class="text-center font-medium" [class]="varianceClass(qrVarianceA())">{{ formatVariance(qrVarianceA()) }}</div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button
+            (click)="saveReconciliationA()"
+            [disabled]="savingA || actualCashA === null || actualQrA === null"
+            class="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg font-medium touch-manipulation"
+          >{{ savingA ? 'Guardando...' : 'Guardar' }}</button>
+          @if (saveErrorA) {
+            <span class="text-red-400 text-sm">No se pudo guardar</span>
+          }
+        </div>
+      </div>
     }
   }
 

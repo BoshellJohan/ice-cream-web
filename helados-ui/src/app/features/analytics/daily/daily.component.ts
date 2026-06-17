@@ -1,4 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AnalyticsService } from '../../../core/services/analytics.service';
@@ -7,7 +8,7 @@ import { DailyData, ReconciliationData } from '../../../core/models/analytics.mo
 @Component({
   selector: 'app-daily',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DatePipe],
   templateUrl: './daily.component.html',
 })
 export class DailyComponent implements OnInit {
