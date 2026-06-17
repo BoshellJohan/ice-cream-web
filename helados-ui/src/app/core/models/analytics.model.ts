@@ -25,3 +25,11 @@ export interface TopItemsData {
   topFlavors: TopFlavor[];
   topToppings: TopTopping[];
 }
+
+export interface DailyData {
+  orders:       number;
+  items:        number;
+  totalRevenue: number;
+  cashRevenue:  number;
+  qrRevenue:    number;
+}
