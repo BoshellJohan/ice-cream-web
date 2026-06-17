@@ -91,4 +91,24 @@ export class AnalyticsService {
       topToppings: toppingGroups.map(g => ({ name: toppingMap.get(g.toppingId) ?? g.toppingId, quantity: g._sum.quantity ?? 0 })),
     };
   }
+
+  async getDaily(date: string) {
+    const range = this.dateRange(date, date);
+
+    const [orders, items, payments] = await Promise.all([
+      this.prisma.order.count({ where: { createdAt: range } }),
+      this.prisma.orderItem.count({ where: { order: { createdAt: range } } }),
+      this.prisma.orderPayment.groupBy({
+        by: ['paymentMethod'],
+        _sum: { amount: true },
+        where: { order: { createdAt: range } },
+      }),
+    ]);
+
+    const cashRevenue  = Number(payments.find(p => p.paymentMethod === 'CASH')?._sum.amount ?? 0);
+    const qrRevenue    = Number(payments.find(p => p.paymentMethod === 'QR')?._sum.amount  ?? 0);
+    const totalRevenue = Math.round((cashRevenue + qrRevenue) * 100) / 100;
+
+    return { orders, items, totalRevenue, cashRevenue, qrRevenue };
+  }
 }

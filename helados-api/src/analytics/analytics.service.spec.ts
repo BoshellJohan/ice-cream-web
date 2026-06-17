@@ -3,11 +3,12 @@ import { AnalyticsService } from './analytics.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const mockPrisma = {
-  order: { findMany: jest.fn() },
-  orderItem: { groupBy: jest.fn() },
+  order:            { findMany: jest.fn(), count: jest.fn() },
+  orderItem:        { groupBy: jest.fn(), count: jest.fn() },
   orderItemTopping: { groupBy: jest.fn() },
-  flavor: { findMany: jest.fn() },
-  topping: { findMany: jest.fn() },
+  orderPayment:     { groupBy: jest.fn() },
+  flavor:           { findMany: jest.fn() },
+  topping:          { findMany: jest.fn() },
 };
 
 describe('AnalyticsService', () => {
@@ -101,6 +102,49 @@ describe('AnalyticsService', () => {
       const result = await service.getTopItems('2026-06-13', '2026-06-14');
       expect(result.topFlavors).toHaveLength(0);
       expect(result.topToppings).toHaveLength(0);
+    });
+  });
+
+  describe('getDaily', () => {
+    it('returns counts and revenue split for a day with mixed payments', async () => {
+      mockPrisma.order.count.mockResolvedValue(5);
+      mockPrisma.orderItem.count.mockResolvedValue(8);
+      mockPrisma.orderPayment.groupBy.mockResolvedValue([
+        { paymentMethod: 'CASH', _sum: { amount: '40.00' } },
+        { paymentMethod: 'QR',   _sum: { amount: '60.50' } },
+      ]);
+
+      const result = await service.getDaily('2026-06-15');
+
+      expect(result.orders).toBe(5);
+      expect(result.items).toBe(8);
+      expect(result.cashRevenue).toBeCloseTo(40.00, 2);
+      expect(result.qrRevenue).toBeCloseTo(60.50, 2);
+      expect(result.totalRevenue).toBeCloseTo(100.50, 2);
+    });
+
+    it('returns all zeros for a day with no orders', async () => {
+      mockPrisma.order.count.mockResolvedValue(0);
+      mockPrisma.orderItem.count.mockResolvedValue(0);
+      mockPrisma.orderPayment.groupBy.mockResolvedValue([]);
+
+      const result = await service.getDaily('2026-06-01');
+
+      expect(result).toEqual({ orders: 0, items: 0, totalRevenue: 0, cashRevenue: 0, qrRevenue: 0 });
+    });
+
+    it('returns 0 cashRevenue when only QR payments were used', async () => {
+      mockPrisma.order.count.mockResolvedValue(3);
+      mockPrisma.orderItem.count.mockResolvedValue(4);
+      mockPrisma.orderPayment.groupBy.mockResolvedValue([
+        { paymentMethod: 'QR', _sum: { amount: '75.00' } },
+      ]);
+
+      const result = await service.getDaily('2026-06-15');
+
+      expect(result.cashRevenue).toBe(0);
+      expect(result.qrRevenue).toBeCloseTo(75.00, 2);
+      expect(result.totalRevenue).toBeCloseTo(75.00, 2);
     });
   });
 });
