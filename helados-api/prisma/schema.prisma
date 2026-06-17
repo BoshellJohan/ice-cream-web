@@ -60,6 +60,7 @@ model User {
   orders          Order[]
   snapshots       InventorySnapshot[]
   inventoryEdits  InventoryEdit[]
+  reconciliations DailyReconciliation[]
 }
 
 model Product {
@@ -202,5 +203,6 @@ model DailyReconciliation {
   actualCash Decimal  @db.Decimal(10, 2)
   actualQr   Decimal  @db.Decimal(10, 2)
   updatedBy  String
+  user       User     @relation(fields: [updatedBy], references: [id])
   updatedAt  DateTime @updatedAt
 }
