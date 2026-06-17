@@ -3,12 +3,13 @@ import { AnalyticsService } from './analytics.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const mockPrisma = {
-  order:            { findMany: jest.fn(), count: jest.fn() },
-  orderItem:        { groupBy: jest.fn(), count: jest.fn() },
-  orderItemTopping: { groupBy: jest.fn() },
-  orderPayment:     { groupBy: jest.fn() },
-  flavor:           { findMany: jest.fn() },
-  topping:          { findMany: jest.fn() },
+  order:               { findMany: jest.fn(), count: jest.fn() },
+  orderItem:           { groupBy: jest.fn(), count: jest.fn() },
+  orderItemTopping:    { groupBy: jest.fn() },
+  orderPayment:        { groupBy: jest.fn() },
+  flavor:              { findMany: jest.fn() },
+  topping:             { findMany: jest.fn() },
+  dailyReconciliation: { findUnique: jest.fn(), upsert: jest.fn() },
 };
 
 describe('AnalyticsService', () => {
@@ -145,6 +146,75 @@ describe('AnalyticsService', () => {
       expect(result.cashRevenue).toBe(0);
       expect(result.qrRevenue).toBeCloseTo(75.00, 2);
       expect(result.totalRevenue).toBeCloseTo(75.00, 2);
+    });
+  });
+
+  describe('getReconciliation', () => {
+    it('returns the saved record with numeric amounts', async () => {
+      mockPrisma.dailyReconciliation.findUnique.mockResolvedValue({
+        id: 'r1',
+        date: new Date('2026-06-15'),
+        actualCash: '125.00',
+        actualQr: '130.20',
+        updatedBy: 'user1',
+        updatedAt: new Date('2026-06-15T14:32:00Z'),
+      });
+
+      const result = await service.getReconciliation('2026-06-15');
+
+      expect(result).toEqual({
+        actualCash: 125.0,
+        actualQr: 130.2,
+        updatedAt: '2026-06-15T14:32:00.000Z',
+      });
+    });
+
+    it('returns null when no record exists for the day', async () => {
+      mockPrisma.dailyReconciliation.findUnique.mockResolvedValue(null);
+
+      const result = await service.getReconciliation('2026-06-01');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('saveReconciliation', () => {
+    it('upserts the record and stamps updatedBy in both create and update payloads', async () => {
+      mockPrisma.dailyReconciliation.upsert.mockResolvedValue({
+        id: 'r1',
+        date: new Date('2026-06-15'),
+        actualCash: '125.00',
+        actualQr: '130.20',
+        updatedBy: 'user1',
+        updatedAt: new Date('2026-06-15T14:32:00Z'),
+      });
+
+      await service.saveReconciliation('2026-06-15', 125.0, 130.2, 'user1');
+
+      expect(mockPrisma.dailyReconciliation.upsert).toHaveBeenCalledWith({
+        where: { date: new Date('2026-06-15') },
+        create: { date: new Date('2026-06-15'), actualCash: 125.0, actualQr: 130.2, updatedBy: 'user1' },
+        update: { actualCash: 125.0, actualQr: 130.2, updatedBy: 'user1' },
+      });
+    });
+
+    it('returns the saved record with numeric amounts', async () => {
+      mockPrisma.dailyReconciliation.upsert.mockResolvedValue({
+        id: 'r1',
+        date: new Date('2026-06-15'),
+        actualCash: '125.00',
+        actualQr: '130.20',
+        updatedBy: 'user1',
+        updatedAt: new Date('2026-06-15T14:32:00Z'),
+      });
+
+      const result = await service.saveReconciliation('2026-06-15', 125.0, 130.2, 'user1');
+
+      expect(result).toEqual({
+        actualCash: 125.0,
+        actualQr: 130.2,
+        updatedAt: '2026-06-15T14:32:00.000Z',
+      });
     });
   });
 });

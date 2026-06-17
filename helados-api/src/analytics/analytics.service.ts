@@ -111,4 +111,29 @@ export class AnalyticsService {
 
     return { orders, items, totalRevenue, cashRevenue, qrRevenue };
   }
+
+  async getReconciliation(date: string) {
+    const record = await this.prisma.dailyReconciliation.findUnique({
+      where: { date: new Date(date) },
+    });
+    if (!record) return null;
+    return {
+      actualCash: Number(record.actualCash),
+      actualQr:   Number(record.actualQr),
+      updatedAt:  record.updatedAt.toISOString(),
+    };
+  }
+
+  async saveReconciliation(date: string, actualCash: number, actualQr: number, userId: string) {
+    const record = await this.prisma.dailyReconciliation.upsert({
+      where:  { date: new Date(date) },
+      create: { date: new Date(date), actualCash, actualQr, updatedBy: userId },
+      update: { actualCash, actualQr, updatedBy: userId },
+    });
+    return {
+      actualCash: Number(record.actualCash),
+      actualQr:   Number(record.actualQr),
+      updatedAt:  record.updatedAt.toISOString(),
+    };
+  }
 }
