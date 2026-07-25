@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://your-api.railway.app',
+  apiUrl: 'https://ice-cream-web-production.up.railway.app',
 };
