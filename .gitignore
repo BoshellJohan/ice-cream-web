@@ -1,6 +1,12 @@
 node_modules/
 dist/
-.env
 .superpowers/
 .worktrees/
 *.log
+
+# --- Secretos y configuración local (nunca subir) ---
+.env
+.env.local
+.env.*.local
+!.env.example
+CREDENCIALES.local.md

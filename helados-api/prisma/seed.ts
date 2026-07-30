@@ -1,20 +1,30 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const existing = await prisma.user.findUnique({ where: { email: 'admin@helados.com' } });
+  const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@helados.com').toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!password) {
+    throw new Error(
+      'Falta SEED_ADMIN_PASSWORD. Defínela en helados-api/.env (ver .env.example) antes de ejecutar el seed.',
+    );
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (!existing) {
     await prisma.user.create({
       data: {
         name: 'Admin',
-        email: 'admin@helados.com',
-        passwordHash: await bcrypt.hash('admin1234', 10),
+        email,
+        passwordHash: await bcrypt.hash(password, 10),
         role: 'ADMIN',
       },
     });
-    console.log('Seeded: admin@helados.com / admin1234');
+    console.log(`Seeded: ${email} (contraseña tomada de SEED_ADMIN_PASSWORD)`);
   }
 
   await prisma.toppingTypeConfig.upsert({
@@ -30,4 +40,9 @@ async function main() {
   console.log('Seeded: ToppingTypeConfig (NORMAL, PREMIUM)');
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());

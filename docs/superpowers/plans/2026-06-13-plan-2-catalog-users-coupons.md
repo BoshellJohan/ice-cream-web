@@ -1672,8 +1672,8 @@ export class ImagesModule {}
 
 Add to `helados-api/.env.example`:
 ```
-DATABASE_URL=postgresql://helados:helados@localhost:5432/helados_dev
-JWT_SECRET=dev-secret-change-in-production
+DATABASE_URL=postgresql://USUARIO:CONTRASENA@localhost:5432/helados_dev
+JWT_SECRET=<secreto-aleatorio>
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret

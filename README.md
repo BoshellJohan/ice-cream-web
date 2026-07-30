@@ -1,35 +1,89 @@
+<div align="center">
+
 # 🍦 helados-app
 
-Aplicación web interna para una startup de helados. La usa el personal (4–5 personas) desde una **tablet en orientación horizontal**. No es una app de cara al público: se prioriza la simplicidad y la comodidad táctil sobre una UX compleja.
+**Aplicación web interna para la operación diaria de una startup de helados.**
+
+Pedidos, catálogo, inventario, cupones y analíticas — pensada para usarse desde una tablet en horizontal.
+
+<p>
+  <img alt="Angular" src="https://img.shields.io/badge/Angular-18-DD0031?logo=angular&logoColor=white">
+  <img alt="NestJS" src="https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white">
+  <img alt="Prisma" src="https://img.shields.io/badge/Prisma-5-2D3748?logo=prisma&logoColor=white">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white">
+  <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white">
+</p>
+
+</div>
 
 ---
 
 ## 📋 Tabla de contenidos
 
 - [Descripción general](#-descripción-general)
+- [Arquitectura](#-arquitectura)
 - [Stack tecnológico](#-stack-tecnológico)
 - [Estructura del repositorio](#-estructura-del-repositorio)
-- [Requisitos previos](#-requisitos-previos)
 - [Puesta en marcha](#-puesta-en-marcha)
 - [Variables de entorno](#-variables-de-entorno)
-- [Base de datos y datos de prueba](#-base-de-datos-y-datos-de-prueba)
 - [Módulos y rutas de la API](#-módulos-y-rutas-de-la-api)
 - [Rutas y vistas del frontend](#-rutas-y-vistas-del-frontend)
+- [Modelo de datos](#-modelo-de-datos)
 - [Pruebas](#-pruebas)
 - [Flujo de desarrollo](#-flujo-de-desarrollo)
 - [Despliegue](#-despliegue)
+- [Seguridad](#-seguridad)
 
 ---
 
 ## 🎯 Descripción general
 
-`helados-app` cubre la operación diaria del negocio:
+`helados-app` la usa el personal (4–5 personas) desde una **tablet en orientación horizontal**.
+No es una app de cara al público: se prioriza la simplicidad y la comodidad táctil sobre una UX compleja.
 
-- **Toma de pedidos** en un flujo visual de 5 pasos (producto → sabor → toppings → cupón → revisión y pago).
-- **Catálogo** de productos, sabores y toppings administrable por el rol ADMIN.
-- **Inventario** mediante snapshots de mañana/noche con registro de auditoría de ediciones.
-- **Cupones** de descuento con validación.
-- **Panel de analíticas** con ingresos, ítems más vendidos, análisis por día y **conciliación de caja** (comparación entre lo registrado por el sistema y el efectivo/QR real recibido).
+| | Funcionalidad |
+|---|---|
+| 🧾 | **Toma de pedidos** en un flujo visual de 5 pasos: producto → sabor → toppings → cupón → revisión y pago |
+| 💳 | **Pagos divididos**: hasta dos métodos (efectivo y QR) por pedido |
+| 🍨 | **Catálogo** de productos, sabores y toppings administrable por el rol ADMIN |
+| 📦 | **Inventario** con snapshots de mañana/noche y registro de auditoría de ediciones |
+| 🎟️ | **Cupones** de descuento porcentual o fijo, con validación en tiempo real |
+| 📊 | **Analíticas**: ingresos, ítems más vendidos, análisis por día y comparación entre días |
+| 💰 | **Conciliación de caja**: contrasta lo registrado por el sistema con el efectivo y QR reales |
+
+**Roles:** `STAFF` toma pedidos y consulta el historial; `ADMIN` además administra catálogo, usuarios, cupones, inventario y analíticas.
+
+---
+
+## 🏗️ Arquitectura
+
+```mermaid
+flowchart LR
+    subgraph Cliente["🖥️ Tablet"]
+        UI["Angular 18<br/>standalone + Tailwind"]
+    end
+    subgraph Servidor["☁️ API"]
+        API["NestJS 11<br/>Guards JWT + Roles"]
+        PRISMA["Prisma 5"]
+    end
+    DB[("PostgreSQL")]
+    CLD["Cloudinary<br/>imágenes"]
+
+    UI -- "REST + Bearer JWT" --> API
+    API --> PRISMA --> DB
+    API -- "upload" --> CLD
+    UI -- "URLs de imagen" --> CLD
+```
+
+**Autorización en dos capas:**
+
+- `@UseGuards(JwtAuthGuard)` a nivel de clase → cualquier usuario autenticado.
+- `@UseGuards(RolesGuard) @Roles('ADMIN')` a nivel de método → solo ADMIN.
+
+El personal necesita **leer** el catálogo para tomar pedidos, así que los `GET` de productos,
+sabores y toppings están abiertos a cualquier usuario autenticado, mientras que las
+escrituras (`POST` / `PATCH`) quedan restringidas a ADMIN.
 
 ---
 
@@ -37,12 +91,12 @@ Aplicación web interna para una startup de helados. La usa el personal (4–5 p
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | Angular 18 (componentes standalone), Tailwind CSS |
+| Frontend | Angular 18 (componentes standalone, rutas *lazy*), Tailwind CSS |
 | Backend | NestJS 11 + Prisma 5 + PostgreSQL |
 | Imágenes | Cloudinary (capa gratuita) |
 | Autenticación | JWT (expira en 8 h), almacenado en `localStorage` |
-| Desarrollo local | Docker Compose (solo PostgreSQL) |
-| Despliegue | Neon (PostgreSQL), Railway (API NestJS), Vercel o Netlify (Angular estático) |
+| Desarrollo local | Docker Compose |
+| Despliegue | Neon (PostgreSQL), Railway (API), Vercel o Netlify (Angular estático) |
 
 ---
 
@@ -50,149 +104,179 @@ Aplicación web interna para una startup de helados. La usa el personal (4–5 p
 
 ```
 helados-app/
-├── helados-api/        # API NestJS + Prisma
-├── helados-ui/         # Frontend Angular
-├── docs/               # Especificaciones y planes de desarrollo
-├── docker-compose.yml  # PostgreSQL (y servicios opcionales) para local
-└── CLAUDE.md           # Contexto del proyecto para asistencia con IA
+├── helados-api/            # API NestJS + Prisma
+│   ├── prisma/             # schema.prisma, migraciones y seed
+│   └── src/                # un módulo por dominio (auth, orders, analytics…)
+├── helados-ui/             # Frontend Angular
+│   └── src/app/
+│       ├── core/           # guards, interceptors, models, services
+│       ├── features/       # una carpeta por pantalla
+│       └── shared/         # componentes reutilizables
+├── docs/superpowers/       # specs y planes de desarrollo
+├── docker-compose.yml      # PostgreSQL + API + UI para local
+└── CLAUDE.md               # contexto del proyecto para asistencia con IA
 ```
-
----
-
-## ✅ Requisitos previos
-
-- **Node.js** 20+ y **npm**
-- **Docker** y **Docker Compose** (para la base de datos local)
-- **PostgreSQL 17** cliente (`psql`) — opcional, para inspección manual
-
-> ℹ️ En algunas máquinas `psql` no está en el `PATH`. Puedes usarlo así:
-> ```bash
-> PGPASSWORD=helados /Library/PostgreSQL/17/bin/psql -U helados -d helados_dev
-> ```
 
 ---
 
 ## 🚀 Puesta en marcha
 
-```bash
-# 1. Levantar PostgreSQL local
-docker-compose up -d
+### Requisitos previos
 
-# 2. API (modo desarrollo)
+- **Node.js 20+** y **npm**
+- **Docker** y **Docker Compose**
+
+### 1. Configurar las variables de entorno
+
+```bash
+cp .env.example .env                          # variables de docker-compose
+cp helados-api/.env.example helados-api/.env  # configuración de la API
+```
+
+Edita ambos archivos y rellena los valores. Ninguno de los dos se sube al repositorio.
+
+### 2. Levantar la base de datos
+
+```bash
+docker-compose up -d postgres
+```
+
+> 💡 `docker-compose up -d` sin argumentos levanta también la API y la UI en contenedores.
+
+### 3. API
+
+```bash
 cd helados-api
 npm install
-npm run prisma:migrate      # aplica las migraciones
-npm run prisma:seed         # crea el usuario admin y la configuración inicial
-npm run start:dev           # http://localhost:3000
-
-# 3. UI (modo desarrollo, en otra terminal)
-cd helados-ui
-npm install
-npx ng serve                # http://localhost:4200
+npm run prisma:migrate   # aplica las migraciones
+npm run prisma:seed      # crea el usuario admin y la configuración inicial
+npm run start:dev        # → http://localhost:3000
 ```
 
-Verificación rápida de la build de Angular:
+### 4. UI
 
 ```bash
-cd helados-ui && npx ng build --configuration=development
+cd helados-ui
+npm install
+npx ng serve             # → http://localhost:4200
 ```
+
+Inicia sesión con las credenciales que definiste en `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
 
 ---
 
 ## 🔐 Variables de entorno
 
-Crea `helados-api/.env` (está en `.gitignore`):
+Los archivos `.env` están en `.gitignore`. Usa las plantillas `.env.example` como referencia.
 
-```env
-DATABASE_URL=postgresql://helados:helados@localhost:5432/helados_dev
-JWT_SECRET=dev-secret-change-in-production
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
-```
+**Raíz del repositorio** (`docker-compose.yml`):
 
-El frontend Angular lee la URL de la API desde `helados-ui/src/environments/environment.ts` (**no** usa `VITE_API_URL`).
-
----
-
-## 🌱 Base de datos y datos de prueba
-
-El seed crea un usuario inicial:
-
-| Campo | Valor |
+| Variable | Descripción |
 |---|---|
-| Nombre | `Admin` |
-| Email | `admin@helados.com` |
-| Contraseña | `admin1234` |
-| Rol | `ADMIN` |
+| `POSTGRES_USER` | Usuario de la base de datos local |
+| `POSTGRES_PASSWORD` | Contraseña de la base de datos local |
+| `POSTGRES_DB` | Nombre de la base de datos (por defecto `helados_dev`) |
+| `JWT_SECRET` | Secreto de firma de los tokens |
 
-También crea (upsert) las filas de `ToppingTypeConfig` para `NORMAL` y `PREMIUM` (con `unitPrice` inicial en 0).
+**`helados-api/.env`:**
 
-> 📧 **Normalización de emails:** siempre se aplica `.toLowerCase()` antes de `findUnique` y `create`, porque PostgreSQL distingue mayúsculas/minúsculas.
+| Variable | Descripción |
+|---|---|
+| `DATABASE_URL` | Cadena de conexión a PostgreSQL |
+| `JWT_SECRET` | Secreto de firma de los tokens — genera uno con `openssl rand -base64 32` |
+| `PORT` | Puerto de la API (por defecto `3000`) |
+| `FRONTEND_URL` | Origen permitido por CORS (por defecto `http://localhost:4200`) |
+| `CLOUDINARY_CLOUD_NAME` · `CLOUDINARY_API_KEY` · `CLOUDINARY_API_SECRET` | Credenciales de Cloudinary |
+| `SEED_ADMIN_EMAIL` · `SEED_ADMIN_PASSWORD` | Usuario administrador que crea el seed |
+
+> ⚠️ El seed **falla a propósito** si `SEED_ADMIN_PASSWORD` no está definida: así ninguna
+> contraseña por defecto queda escrita en el código.
+
+El frontend lee la URL de la API desde `helados-ui/src/environments/environment.ts`
+(y `environment.prod.ts` para producción). **No** usa `VITE_API_URL`.
 
 ---
 
 ## 🧩 Módulos y rutas de la API
 
-Autenticación por guards:
+| Módulo | Rutas principales | Acceso |
+|---|---|---|
+| **Auth** | `POST /auth/login` · `POST /auth/change-password` | público · autenticado |
+| **Users** | `GET/POST /users` · `PATCH /users/:id/role` · `PATCH /users/:id/deactivate` | ADMIN |
+| **Products** | `GET /products` · `POST /products` · `PATCH /products/:id` · `PATCH /products/:id/toggle-active` | lectura autenticada · escritura ADMIN |
+| **Flavors** | `GET /flavors` + escrituras | lectura autenticada · escritura ADMIN |
+| **Toppings** | `GET /toppings` · `GET /toppings/type-config` · `PATCH /toppings/type-config/:type` | lectura autenticada · escritura ADMIN |
+| **Coupons** | `POST /coupons/validate` · CRUD | validación autenticada · resto ADMIN |
+| **Images** | `POST /images/upload` (límite 5 MB, sube a Cloudinary) | ADMIN |
+| **Orders** | `POST /orders` · `GET /orders` · `GET /orders/:id` | autenticado |
+| **Inventory** | `POST/GET /inventory/snapshots` · `GET /inventory/snapshots/day` · `PATCH /inventory/snapshots/:id` | ADMIN |
+| **Analytics** | `GET /analytics/summary` · `/top-items` · `/reconciliation-summary` (rango `from`/`to`)<br>`GET /analytics/daily` · `/reconciliation` (`date`) · `PUT /analytics/reconciliation` | ADMIN |
 
-- `@UseGuards(JwtAuthGuard)` a nivel de clase → cualquier usuario autenticado.
-- `@UseGuards(RolesGuard) @Roles('ADMIN')` a nivel de método → solo ADMIN.
+**Detalles de comportamiento:**
 
-| Módulo | Rutas principales |
-|---|---|
-| **AuthModule** | `POST /auth/login` (público), `POST /auth/change-password` (JWT) |
-| **UsersModule** | `GET/POST /users`, `PATCH /users/:id/role`, `PATCH /users/:id/deactivate` — solo ADMIN |
-| **ProductsModule** | `GET /products` (cualquier auth), escrituras solo ADMIN |
-| **FlavorsModule** | `GET /flavors` (cualquier auth), escrituras solo ADMIN |
-| **ToppingsModule** | `GET /toppings`, `GET /toppings/type-config` (cualquier auth), escrituras solo ADMIN |
-| **CouponsModule** | `POST /coupons/validate` (cualquier auth), resto solo ADMIN |
-| **ImagesModule** | `POST /images/upload` — ADMIN, límite 5 MB, sube a Cloudinary |
-| **OrdersModule** | `POST /orders`, `GET /orders`, `GET /orders/:id` — cualquier auth |
-| **InventoryModule** | `POST/GET /inventory/snapshots`, `GET /inventory/snapshots/day`, `PATCH /inventory/snapshots/:id` — solo ADMIN |
-| **AnalyticsModule** | `GET /analytics/summary`, `/top-items`, `/daily`, `/reconciliation`, `/reconciliation-summary` — solo ADMIN |
-
-> 🛒 **Lectura vs. escritura del catálogo:** el personal necesita leer productos/sabores/toppings para tomar pedidos (`GET` con cualquier auth), pero solo ADMIN puede crear o editar.
-
-> 🎟️ **Validación de cupones:** devuelve `UnprocessableEntityException` (422), no 400, y los mensajes de error están en español.
+- 📧 **Normalización de emails** — siempre `.toLowerCase()` antes de `findUnique` y `create`, porque PostgreSQL distingue mayúsculas de minúsculas.
+- 🎟️ **Validación de cupones** — devuelve `422 Unprocessable Entity` (no 400) y los mensajes de error están en español.
+- 💳 **Pagos divididos** — de 1 a 2 métodos por pedido, sin repetir; la suma debe cuadrar exactamente con el total (comparación en céntimos enteros) o se devuelve 422.
+- 🍫 **Toppings incluidos** — cada producto puede incluir *N* toppings gratis de un tipo; los que excedan se cobran a precio completo. El frontend replica el cálculo para la vista previa del precio.
+- 📦 **Snapshots de inventario** — `POST` funciona como *upsert* por (fecha, periodo) dentro de una transacción; `PATCH` reemplaza las líneas y añade una entrada al log de auditoría.
 
 ---
 
 ## 🖥️ Rutas y vistas del frontend
 
-| Ruta | Guard | Componente / propósito |
+| Ruta | Guard | Propósito |
 |---|---|---|
 | `/login` | — | Inicio de sesión |
-| `/orders/new` | authGuard | Flujo visual de pedido en 5 pasos |
-| `/orders/history` | authGuard | Historial con filtro por rango de fechas |
-| `/dashboard` | authGuard + adminGuard | Resumen de ingresos, top de ítems y **conciliación de caja** |
-| `/dashboard/daily` | authGuard + adminGuard | Análisis diario y comparación entre dos días |
-| `/inventory` | authGuard + adminGuard | Snapshots de mañana/noche con auditoría de ediciones |
-| `/catalog` | authGuard + adminGuard | Pestañas: Productos / Sabores / Toppings |
-| `/coupons` | authGuard + adminGuard | Gestión de cupones |
-| `/users` | authGuard + adminGuard | Gestión de usuarios |
+| `/orders/new` | `authGuard` | Flujo visual de pedido en 5 pasos |
+| `/orders/history` | `authGuard` | Historial con filtro por rango de fechas |
+| `/dashboard` | `authGuard` + `adminGuard` | Ingresos, top de ítems y conciliación de caja |
+| `/dashboard/daily` | `authGuard` + `adminGuard` | Análisis diario y comparación entre dos días |
+| `/inventory` | `authGuard` + `adminGuard` | Snapshots de mañana/noche con auditoría |
+| `/catalog` | `authGuard` + `adminGuard` | Pestañas: Productos / Sabores / Toppings |
+| `/coupons` | `authGuard` + `adminGuard` | Gestión de cupones |
+| `/users` | `authGuard` + `adminGuard` | Gestión de usuarios |
 
-Convenciones de Angular usadas en el proyecto:
+**Convenciones de Angular usadas en el proyecto:**
 
 - Inyección de dependencias con la función `inject()` (sin inyección por constructor).
-- Interceptor funcional (`HttpInterceptorFn`): agrega el Bearer JWT; en 401 llama a `auth.logout()`, en 403 redirige a `/orders/new`.
+- Interceptor funcional (`HttpInterceptorFn`): añade el Bearer JWT; en 401 llama a `auth.logout()`, en 403 redirige a `/orders/new`.
 - Guards funcionales (`CanActivateFn`): `authGuard` (sesión iniciada) y `adminGuard` (rol ADMIN).
 - Tema oscuro: fondos `gray-950`, tarjetas `gray-900`; morado de marca `purple-600` / `purple-700`.
 
 ---
 
-## 🧪 Pruebas
+## 🗃️ Modelo de datos
 
-**Backend (Jest):**
+Enums principales: `Role` · `ProductType` (CONE, CONTAINER, BEVERAGE) · `ProductSize` (SMALL, MEDIUM, LARGE, OZ4–OZ8) · `DiscountType` · `ToppingType` (NORMAL, PREMIUM) · `SnapshotPeriod` (MORNING, NIGHT) · `PaymentMethod` (QR, CASH).
+
+| Modelo | Notas |
+|---|---|
+| `User` | email único, `passwordHash` con bcrypt, rol y estado activo |
+| `Product` | tipo, tamaño, precio base, venta directa y toppings incluidos |
+| `Flavor` · `Topping` | catálogo con imagen y modificador/precio unitario |
+| `ToppingTypeConfig` | precio por defecto de cada tipo de topping |
+| `Coupon` | código único, tipo y valor de descuento, vigencia y usos |
+| `Order` · `OrderPayment` | pedido con 1–2 pagos asociados |
+| `OrderItem` · `OrderItemTopping` | líneas del pedido; guarda `unitPriceAtSale` como *snapshot* de precio |
+| `InventorySnapshot` · `InventoryLine` · `InventoryEdit` | conteo por periodo y su log de auditoría |
+| `DailyReconciliation` | efectivo y QR realmente contados por día |
+
+> 💵 Todos los importes son `Decimal(10,2)`: Prisma devuelve objetos `Decimal`, así que hay que envolverlos en `Number(...)` antes de operar.
+
+---
+
+## 🧪 Pruebas
 
 ```bash
 cd helados-api
-npm test              # suite completa
-npm run test:watch    # modo watch
-npm run test:cov      # con cobertura
+npm test                             # suite completa (Jest)
+npm test -- orders.service.spec.ts   # un archivo concreto
+npm test -- -t "nombre del caso"     # un test por nombre
+npm run test:cov                     # con cobertura
+npm run lint                         # ESLint con --fix
 ```
 
-**Frontend:** el proyecto valida los cambios con la build de Angular:
+El frontend se valida con la build de Angular:
 
 ```bash
 cd helados-ui && npx ng build --configuration=development
@@ -203,8 +287,9 @@ cd helados-ui && npx ng build --configuration=development
 ## 🔧 Flujo de desarrollo
 
 - Las ramas de features usan git worktrees bajo `.worktrees/` (ignorado por git).
-- Los planes viven en `docs/superpowers/plans/` y las especificaciones en `docs/superpowers/specs/`.
-- El desarrollo sigue: implementación → revisión de cumplimiento del spec → revisión de calidad de código → marcar como hecho.
+- Las especificaciones viven en `docs/superpowers/specs/` y los planes en `docs/superpowers/plans/`, con nombre `YYYY-MM-DD-<slug>.md`. Primero la spec, luego el plan, luego la implementación.
+- Cada cambio pasa por: implementación → revisión de cumplimiento del spec → revisión de calidad de código → marcar como hecho.
+- Los cambios de esquema se hacen con `npm run prisma:migrate` y las migraciones se commitean.
 
 ---
 
@@ -216,7 +301,19 @@ cd helados-ui && npx ng build --configuration=development
 | API NestJS | Railway |
 | Frontend Angular (estático) | Vercel o Netlify |
 
-Recuerda cambiar `JWT_SECRET` y configurar las credenciales de Cloudinary y la `DATABASE_URL` de producción en el entorno de despliegue.
+En el entorno de despliegue hay que definir `DATABASE_URL`, un `JWT_SECRET` propio,
+`FRONTEND_URL` con el dominio real y las credenciales de Cloudinary.
+
+---
+
+## 🔒 Seguridad
+
+- Ningún archivo `.env` se versiona; solo se publican plantillas `.env.example` sin valores.
+- Las contraseñas se almacenan con bcrypt.
+- CORS restringido al origen definido en `FRONTEND_URL`.
+- El `ValidationPipe` global usa `whitelist: true`: las propiedades no declaradas en los DTO se descartan.
+
+Si encuentras un problema de seguridad, abre un *issue* sin incluir datos sensibles.
 
 ---
 

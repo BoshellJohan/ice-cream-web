@@ -163,8 +163,8 @@ services:
     ports:
       - '3000:3000'
     environment:
-      DATABASE_URL: postgresql://helados:helados@postgres:5432/helados_dev
-      JWT_SECRET: dev-secret-change-in-production
+      DATABASE_URL: postgresql://USUARIO:CONTRASENA@postgres:5432/helados_dev
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ./helados-api:/app
       - /app/node_modules
@@ -240,8 +240,8 @@ bootstrap();
 
 Create `helados-api/.env.example`:
 ```
-DATABASE_URL=postgresql://helados:helados@localhost:5432/helados_dev
-JWT_SECRET=dev-secret-change-in-production
+DATABASE_URL=postgresql://USUARIO:CONTRASENA@localhost:5432/helados_dev
+JWT_SECRET=<secreto-aleatorio>
 ```
 
 Copy it to `.env`:
@@ -461,11 +461,11 @@ async function main() {
     data: {
       name: 'Admin',
       email: 'admin@helados.com',
-      passwordHash: await bcrypt.hash('admin1234', 10),
+      passwordHash: await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD, 10),
       role: 'ADMIN',
     },
   });
-  console.log('Seeded: admin@helados.com / admin1234');
+  console.log('Seeded: admin@helados.com / <SEED_ADMIN_PASSWORD>');
 }
 
 main().finally(() => prisma.$disconnect());
@@ -493,7 +493,7 @@ Add at the root level of `helados-api/package.json`:
 npx dotenv -e .env -- ts-node prisma/seed.ts
 ```
 
-Expected: `Seeded: admin@helados.com / admin1234`
+Expected: `Seeded: admin@helados.com / <SEED_ADMIN_PASSWORD>`
 
 - [ ] **Step 7: Commit**
 
@@ -1011,7 +1011,7 @@ export class AppModule {}
 docker compose up postgres api -d
 curl -s -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@helados.com","password":"admin1234"}'
+  -d '{"email":"admin@helados.com","password":"<SEED_ADMIN_PASSWORD>"}'
 ```
 
 Expected: `{"accessToken":"eyJ...","role":"ADMIN","name":"Admin"}`
@@ -1508,7 +1508,7 @@ docker compose up
 ```
 
 Open http://localhost:4200 — should redirect to `/login`.
-Log in with `admin@helados.com` / `admin1234`.
+Log in with `admin@helados.com` / `<SEED_ADMIN_PASSWORD>`.
 Should redirect to `/dashboard` showing "Dashboard — Plan 4".
 Log out (clear localStorage) and log in as staff — should go to `/orders/new`.
 
@@ -1527,7 +1527,7 @@ The app now has:
 - Docker Compose stack (PostgreSQL 16 + NestJS + Angular)
 - Complete Prisma schema — all 10 tables, all enums, all relations
 - JWT authentication — login endpoint, 8h token, guards, roles decorator
-- Seed script — admin@helados.com / admin1234
+- Seed script — admin@helados.com / <SEED_ADMIN_PASSWORD>
 - Angular login screen — Tailwind UI, role-based redirect on success
 - Auth interceptor — attaches Bearer token, redirects on 401/403
 - Stub pages for all future routes so routing compiles

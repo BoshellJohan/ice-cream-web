@@ -1,11 +1,13 @@
+# Los valores se leen del archivo `.env` de la raíz (no versionado).
+# Copia `.env.example` a `.env` antes de levantar los servicios.
 version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: helados
-      POSTGRES_PASSWORD: helados
-      POSTGRES_DB: helados_dev
+      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER en .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:-helados_dev}
     ports:
       - '5432:5432'
     volumes:
@@ -18,8 +20,8 @@ services:
     ports:
       - '3000:3000'
     environment:
-      DATABASE_URL: postgresql://helados:helados@postgres:5432/helados_dev
-      JWT_SECRET: dev-secret-change-in-production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-helados_dev}
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET en .env}
     volumes:
       - ./helados-api:/app
       - /app/node_modules
