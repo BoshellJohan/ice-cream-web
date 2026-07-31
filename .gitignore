@@ -2,6 +2,7 @@ node_modules/
 dist/
 .superpowers/
 .worktrees/
+.claude/worktrees/
 *.log
 
 # --- Secretos y configuración local (nunca subir) ---
