@@ -13,7 +13,8 @@
 ## Global Constraints
 
 - All user-facing API messages are in **Spanish**, matching existing services.
-- Cancellation refusals use **422** (`UnprocessableEntityException`), never 403 — `auth.interceptor.ts` redirects to `/orders/new` on any 403.
+- **Permission** refusals on cancel use **422** (`UnprocessableEntityException`), never 403 — `auth.interceptor.ts` redirects to `/orders/new` on any 403. This covers the two authorization cases only; a missing order is still **404** and an already-cancelled order is still **409**, as specified in Task 5.
+- The cancellation permission rule is defined in **exactly one** private helper and consumed by both `cancel()` and `computeCanCancel()`. Do not restate the role/ownership/window conditions in two places.
 - Money stays `Decimal(10,2)`; wrap in `Number(...)` before arithmetic.
 - `PrismaModule` is `@Global()` — never import it in a feature module.
 - The cancellation window is **15 minutes**, defined once as `CANCEL_WINDOW_MS`.
@@ -667,6 +668,28 @@ import { CancelReason } from './dto/cancel-order.dto';
 export const CANCEL_WINDOW_MS = 15 * 60 * 1000;
 ```
 
+Add this private helper to `OrdersService` first. It is the **single** definition of the cancellation permission rule — Task 6 consumes it too, so do not restate these conditions anywhere else:
+
+```typescript
+  /**
+   * Devuelve el mensaje de error si el usuario NO puede anular el pedido,
+   * o null si sí puede. Única definición de la regla de permiso.
+   */
+  private cancelPermissionError(
+    order: { staffId: string; createdAt: Date },
+    user: { sub: string; role: string },
+  ): string | null {
+    if (user.role === 'ADMIN') return null;
+    if (order.staffId !== user.sub) {
+      return 'Solo puedes anular pedidos que registraste tú';
+    }
+    if (Date.now() - order.createdAt.getTime() > CANCEL_WINDOW_MS) {
+      return 'El plazo de 15 minutos para anular este pedido ya venció. Pide a un administrador que lo anule.';
+    }
+    return null;
+  }
+```
+
 Then add this method to `OrdersService`, after `findOne`:
 
 ```typescript
@@ -679,18 +702,8 @@ Then add this method to `OrdersService`, after `findOne`:
     if (!order) throw new NotFoundException('Pedido no encontrado');
     if (order.cancelledAt) throw new ConflictException('El pedido ya está anulado');
 
-    if (user.role !== 'ADMIN') {
-      if (order.staffId !== user.sub) {
-        throw new UnprocessableEntityException(
-          'Solo puedes anular pedidos que registraste tú',
-        );
-      }
-      if (Date.now() - order.createdAt.getTime() > CANCEL_WINDOW_MS) {
-        throw new UnprocessableEntityException(
-          'El plazo de 15 minutos para anular este pedido ya venció. Pide a un administrador que lo anule.',
-        );
-      }
-    }
+    const permissionError = this.cancelPermissionError(order, user);
+    if (permissionError) throw new UnprocessableEntityException(permissionError);
 
     return this.prisma.$transaction(async (tx) => {
       if (order.couponId) {
@@ -826,7 +839,7 @@ Expected: FAIL — `canCancel` is `undefined`.
 
 - [ ] **Step 3: Implement the helper and thread the user through**
 
-Add the private helper to `OrdersService`:
+Add `computeCanCancel` to `OrdersService`. It **must** delegate to the `cancelPermissionError` helper created in Task 5 — the role/ownership/window conditions are defined once and only once. Re-implementing them here is a defect, because the flag and the endpoint would be free to drift apart:
 
 ```typescript
   private computeCanCancel(
@@ -834,11 +847,7 @@ Add the private helper to `OrdersService`:
     user: { sub: string; role: string },
   ): boolean {
     if (order.cancelledAt) return false;
-    if (user.role === 'ADMIN') return true;
-    return (
-      order.staffId === user.sub &&
-      Date.now() - order.createdAt.getTime() <= CANCEL_WINDOW_MS
-    );
+    return this.cancelPermissionError(order, user) === null;
   }
 ```
 
