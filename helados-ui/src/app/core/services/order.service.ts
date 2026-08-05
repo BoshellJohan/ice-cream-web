@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { Order, CreateOrderPayload } from '../models/order.model';
+import { Order, CreateOrderPayload, CancelReason } from '../models/order.model';
 
 @Injectable({ providedIn: 'root' })
 export class OrderService {
@@ -21,5 +21,9 @@ export class OrderService {
 
   create(body: CreateOrderPayload) {
     return this.http.post<Order>(this.url, body);
+  }
+
+  cancel(id: string, reason: CancelReason) {
+    return this.http.patch<Order>(`${this.url}/${id}/cancel`, { reason });
   }
 }

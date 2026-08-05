@@ -30,6 +30,19 @@ export interface OrderItem {
   toppings: OrderItemTopping[];
 }
 
+export type CancelReason =
+  | 'REGISTRO_ERRONEO'
+  | 'CLIENTE_CANCELO'
+  | 'PRODUCTO_DEFECTUOSO'
+  | 'OTRO';
+
+export const CANCEL_REASON_LABELS: Record<CancelReason, string> = {
+  REGISTRO_ERRONEO:    'Error al registrar',
+  CLIENTE_CANCELO:     'Cliente canceló',
+  PRODUCTO_DEFECTUOSO: 'Producto en mal estado',
+  OTRO:                'Otro',
+};
+
 export interface Order {
   id: string;
   staffId: string;
@@ -43,6 +56,10 @@ export interface Order {
   notes: string | null;
   createdAt: string;
   items: OrderItem[];
+  cancelledAt: string | null;
+  cancelledByUser: { name: string } | null;
+  cancelReason: CancelReason | null;
+  canCancel: boolean;
 }
 
 export interface CreateOrderItemToppingPayload {
