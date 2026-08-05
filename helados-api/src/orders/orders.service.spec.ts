@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CouponsService } from '../coupons/coupons.service';
@@ -8,8 +8,8 @@ const mockPrisma = {
   product: { findMany: jest.fn() },
   flavor: { findMany: jest.fn() },
   topping: { findMany: jest.fn() },
-  order: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
-  coupon: { update: jest.fn() },
+  order: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+  coupon: { update: jest.fn(), updateMany: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -271,6 +271,109 @@ describe('OrdersService', () => {
     it('throws NotFoundException for unknown id', async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null);
       await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('cancel', () => {
+    const admin = { sub: 'admin1', role: 'ADMIN' };
+    const staff = { sub: 'staff1', role: 'STAFF' };
+
+    function activeOrderRow(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'order1',
+        staffId: 'staff1',
+        couponId: null,
+        createdAt: new Date(),
+        cancelledAt: null,
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      mockPrisma.$transaction.mockImplementation(
+        (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
+      );
+      mockPrisma.order.update.mockResolvedValue({ id: 'order1', cancelledAt: new Date() });
+      mockPrisma.coupon.updateMany.mockResolvedValue({ count: 1 });
+    });
+
+    it('lets an ADMIN cancel any order regardless of age', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(
+        activeOrderRow({ createdAt: new Date('2020-01-01T00:00:00Z') }),
+      );
+
+      await service.cancel(admin, 'order1', 'REGISTRO_ERRONEO');
+
+      expect(mockPrisma.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'order1' },
+          data: expect.objectContaining({
+            cancelledBy: 'admin1',
+            cancelReason: 'REGISTRO_ERRONEO',
+          }),
+        }),
+      );
+    });
+
+    it('lets STAFF cancel their own order inside the window', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow());
+
+      await service.cancel(staff, 'order1', 'CLIENTE_CANCELO');
+
+      expect(mockPrisma.order.update).toHaveBeenCalled();
+    });
+
+    it('rejects STAFF cancelling their own order past the window', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(
+        activeOrderRow({ createdAt: new Date(Date.now() - 16 * 60 * 1000) }),
+      );
+
+      await expect(service.cancel(staff, 'order1', 'OTRO')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+      expect(mockPrisma.order.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects STAFF cancelling another user's order", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow({ staffId: 'otro' }));
+
+      await expect(service.cancel(staff, 'order1', 'OTRO')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+      expect(mockPrisma.order.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an already-cancelled order with 409', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(
+        activeOrderRow({ cancelledAt: new Date() }),
+      );
+
+      await expect(service.cancel(admin, 'order1', 'OTRO')).rejects.toThrow(ConflictException);
+    });
+
+    it('throws 404 when the order does not exist', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(null);
+
+      await expect(service.cancel(admin, 'nope', 'OTRO')).rejects.toThrow(NotFoundException);
+    });
+
+    it('decrements the coupon usesCount, floored at zero', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow({ couponId: 'c1' }));
+
+      await service.cancel(admin, 'order1', 'REGISTRO_ERRONEO');
+
+      expect(mockPrisma.coupon.updateMany).toHaveBeenCalledWith({
+        where: { id: 'c1', usesCount: { gt: 0 } },
+        data: { usesCount: { decrement: 1 } },
+      });
+    });
+
+    it('does not touch coupons when the order had none', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow({ couponId: null }));
+
+      await service.cancel(admin, 'order1', 'OTRO');
+
+      expect(mockPrisma.coupon.updateMany).not.toHaveBeenCalled();
     });
   });
 });

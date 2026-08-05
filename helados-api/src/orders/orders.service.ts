@@ -1,8 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
+import { CancelReason } from './dto/cancel-order.dto';
+
+/** Ventana en la que un STAFF puede anular su propio pedido. */
+export const CANCEL_WINDOW_MS = 15 * 60 * 1000;
 
 const orderInclude = {
   payments: true,
@@ -188,5 +192,56 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id }, include: orderInclude });
     if (!order) throw new NotFoundException(`Pedido ${id} no encontrado`);
     return order;
+  }
+
+  /**
+   * Devuelve el mensaje de error si el usuario NO puede anular el pedido,
+   * o null si sí puede. Única definición de la regla de permiso.
+   */
+  private cancelPermissionError(
+    order: { staffId: string; createdAt: Date },
+    user: { sub: string; role: string },
+  ): string | null {
+    if (user.role === 'ADMIN') return null;
+    if (order.staffId !== user.sub) {
+      return 'Solo puedes anular pedidos que registraste tú';
+    }
+    if (Date.now() - order.createdAt.getTime() > CANCEL_WINDOW_MS) {
+      return 'El plazo de 15 minutos para anular este pedido ya venció. Pide a un administrador que lo anule.';
+    }
+    return null;
+  }
+
+  async cancel(
+    user: { sub: string; role: string },
+    orderId: string,
+    reason: CancelReason,
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Pedido no encontrado');
+    if (order.cancelledAt) throw new ConflictException('El pedido ya está anulado');
+
+    const permissionError = this.cancelPermissionError(order, user);
+    if (permissionError) throw new UnprocessableEntityException(permissionError);
+
+    return this.prisma.$transaction(async (tx) => {
+      if (order.couponId) {
+        // updateMany con `usesCount > 0` evita bajar de cero sin leer primero.
+        await tx.coupon.updateMany({
+          where: { id: order.couponId, usesCount: { gt: 0 } },
+          data: { usesCount: { decrement: 1 } },
+        });
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: {
+          cancelledAt: new Date(),
+          cancelledBy: user.sub,
+          cancelReason: reason,
+        },
+        include: orderInclude,
+      });
+    });
   }
 }
