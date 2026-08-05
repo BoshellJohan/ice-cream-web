@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OrderService } from '../../../core/services/order.service';
-import { Order } from '../../../core/models/order.model';
+import { Order, CancelReason, CANCEL_REASON_LABELS } from '../../../core/models/order.model';
 
 @Component({
   selector: 'app-order-history',
@@ -19,6 +19,12 @@ export class OrderHistoryComponent implements OnInit {
 
   fromDate = '';
   toDate   = '';
+
+  cancellingId: string | null = null;   // pedido con el panel de motivos abierto
+  cancelError: string | null = null;
+  submitting = false;
+
+  readonly reasons = Object.entries(CANCEL_REASON_LABELS) as [CancelReason, string][];
 
   ngOnInit() {
     const today = new Date().toISOString().split('T')[0];
@@ -44,6 +50,38 @@ export class OrderHistoryComponent implements OnInit {
 
   toggleExpand(id: string) {
     this.expandedId = this.expandedId === id ? null : id;
+  }
+
+  openCancel(order: Order, event: Event) {
+    event.stopPropagation();          // no expandir/colapsar la fila
+    this.cancellingId = order.id;
+    this.cancelError  = null;
+  }
+
+  closeCancel() {
+    this.cancellingId = null;
+    this.cancelError  = null;
+  }
+
+  confirmCancel(orderId: string, reason: CancelReason) {
+    this.submitting = true;
+    this.cancelError = null;
+    this.orderSvc.cancel(orderId, reason).subscribe({
+      next: () => {
+        this.submitting  = false;
+        this.cancellingId = null;
+        this.load();
+      },
+      error: (err) => {
+        this.submitting = false;
+        this.cancelError =
+          err?.error?.message ?? 'No se pudo anular el pedido. Inténtalo de nuevo.';
+      },
+    });
+  }
+
+  reasonLabel(reason: CancelReason | null): string {
+    return reason ? CANCEL_REASON_LABELS[reason] : '';
   }
 
   formatPrice(n: number | string) { return `$${Number(n).toFixed(2)}`; }
