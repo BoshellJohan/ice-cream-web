@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { activeOrder, activeOrderRelation } from '../orders/order-filters';
 
 @Injectable()
 export class AnalyticsService {
@@ -15,7 +16,7 @@ export class AnalyticsService {
   async getSummary(from: string, to: string) {
     const range = this.dateRange(from, to);
     const orders = await this.prisma.order.findMany({
-      where: { createdAt: range },
+      where: activeOrder({ createdAt: range }),
       select: { createdAt: true, totalAmount: true, couponId: true },
     });
 
@@ -55,14 +56,17 @@ export class AnalyticsService {
         _count: { id: true },
         orderBy: { _count: { id: 'desc' } },
         take: 5,
-        where: { order: { createdAt: range } },
+        where: activeOrderRelation({ createdAt: range }),
       }),
       this.prisma.orderItemTopping.groupBy({
         by: ['toppingId'],
         _sum: { quantity: true },
         orderBy: { _sum: { quantity: 'desc' } },
         take: 5,
-        where: { orderItem: { order: { createdAt: range } } },
+        // OrderItemTopping has no direct `order` relation in the schema —
+        // only `orderItem` (which relates to `order`) — so the helper's
+        // output must be nested one level deeper here than for OrderItem.
+        where: { orderItem: activeOrderRelation({ createdAt: range }) },
       }),
     ]);
 
@@ -96,12 +100,12 @@ export class AnalyticsService {
     const range = this.dateRange(date, date);
 
     const [orders, items, payments] = await Promise.all([
-      this.prisma.order.count({ where: { createdAt: range } }),
-      this.prisma.orderItem.count({ where: { order: { createdAt: range } } }),
+      this.prisma.order.count({ where: activeOrder({ createdAt: range }) }),
+      this.prisma.orderItem.count({ where: activeOrderRelation({ createdAt: range }) }),
       this.prisma.orderPayment.groupBy({
         by: ['paymentMethod'],
         _sum: { amount: true },
-        where: { order: { createdAt: range } },
+        where: activeOrderRelation({ createdAt: range }),
       }),
     ]);
 
@@ -142,7 +146,7 @@ export class AnalyticsService {
     }
 
     const payments = await this.prisma.orderPayment.findMany({
-      where: { order: { createdAt: range } },
+      where: activeOrderRelation({ createdAt: range }),
       select: { paymentMethod: true, amount: true, order: { select: { createdAt: true } } },
     });
 

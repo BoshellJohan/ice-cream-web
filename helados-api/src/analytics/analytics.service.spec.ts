@@ -285,4 +285,91 @@ describe('AnalyticsService', () => {
       });
     });
   });
+
+  describe('excludes cancelled orders', () => {
+    it('getSummary filters cancelled orders', async () => {
+      mockPrisma.order.findMany.mockResolvedValue([]);
+
+      await service.getSummary('2026-06-13', '2026-06-14');
+
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ cancelledAt: null }),
+        }),
+      );
+    });
+
+    it('getTopItems filters cancelled orders on both groupings', async () => {
+      mockPrisma.orderItem.groupBy.mockResolvedValue([]);
+      mockPrisma.orderItemTopping.groupBy.mockResolvedValue([]);
+      mockPrisma.flavor.findMany.mockResolvedValue([]);
+      mockPrisma.topping.findMany.mockResolvedValue([]);
+
+      await service.getTopItems('2026-06-13', '2026-06-14');
+
+      expect(mockPrisma.orderItem.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            order: expect.objectContaining({ cancelledAt: null }),
+          }),
+        }),
+      );
+      // OrderItemTopping has no direct `order` relation in the Prisma schema —
+      // only `orderItem` (which itself relates to `order`). The filter must be
+      // nested one level deeper than OrderItem's, or Prisma rejects the query
+      // at runtime with "Unknown argument `order`".
+      expect(mockPrisma.orderItemTopping.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            orderItem: expect.objectContaining({
+              order: expect.objectContaining({ cancelledAt: null }),
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('getDaily filters cancelled orders on all three queries', async () => {
+      mockPrisma.order.count.mockResolvedValue(0);
+      mockPrisma.orderItem.count.mockResolvedValue(0);
+      mockPrisma.orderPayment.groupBy.mockResolvedValue([]);
+
+      await service.getDaily('2026-06-13');
+
+      expect(mockPrisma.order.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ cancelledAt: null }),
+        }),
+      );
+      expect(mockPrisma.orderItem.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            order: expect.objectContaining({ cancelledAt: null }),
+          }),
+        }),
+      );
+      expect(mockPrisma.orderPayment.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            order: expect.objectContaining({ cancelledAt: null }),
+          }),
+        }),
+      );
+    });
+
+    it('getReconciliationSummary filters cancelled orders out of the system totals', async () => {
+      mockPrisma.dailyReconciliation.findMany.mockResolvedValue([]);
+      mockPrisma.orderPayment.findMany.mockResolvedValue([]);
+
+      await service.getReconciliationSummary('2026-06-13', '2026-06-14');
+
+      expect(mockPrisma.orderPayment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            order: expect.objectContaining({ cancelledAt: null }),
+          }),
+        }),
+      );
+    });
+  });
 });
