@@ -46,6 +46,7 @@ No es una app de cara al público: se prioriza la simplicidad y la comodidad tá
 |---|---|
 | 🧾 | **Toma de pedidos** en un flujo visual de 5 pasos: producto → sabor → toppings → cupón → revisión y pago |
 | 💳 | **Pagos divididos**: hasta dos métodos (efectivo y QR) por pedido |
+| 🚫 | **Anulación de pedidos**: el staff corrige un error dentro de 15 min, el admin sin límite; los anulados dejan de contar en las cifras |
 | 🍨 | **Catálogo** de productos, sabores y toppings administrable por el rol ADMIN |
 | 📦 | **Inventario** con snapshots de mañana/noche y registro de auditoría de ediciones |
 | 🎟️ | **Cupones** de descuento porcentual o fijo, con validación en tiempo real |
@@ -208,7 +209,7 @@ El frontend lee la URL de la API desde `helados-ui/src/environments/environment.
 | **Toppings** | `GET /toppings` · `GET /toppings/type-config` · `PATCH /toppings/type-config/:type` | lectura autenticada · escritura ADMIN |
 | **Coupons** | `POST /coupons/validate` · CRUD | validación autenticada · resto ADMIN |
 | **Images** | `POST /images/upload` (límite 5 MB, sube a Cloudinary) | ADMIN |
-| **Orders** | `POST /orders` · `GET /orders` · `GET /orders/:id` | autenticado |
+| **Orders** | `POST /orders` · `GET /orders` · `GET /orders/:id` · `PATCH /orders/:id/cancel` | autenticado |
 | **Inventory** | `POST/GET /inventory/snapshots` · `GET /inventory/snapshots/day` · `PATCH /inventory/snapshots/:id` | ADMIN |
 | **Analytics** | `GET /analytics/summary` · `/top-items` · `/reconciliation-summary` (rango `from`/`to`)<br>`GET /analytics/daily` · `/reconciliation` (`date`) · `PUT /analytics/reconciliation` | ADMIN |
 

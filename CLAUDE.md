@@ -86,7 +86,7 @@ Seed also upserts `ToppingTypeConfig` rows for NORMAL and PREMIUM (unitPrice def
 | **ToppingsModule** | `GET /toppings`, `GET /toppings/type-config` (any auth), `PATCH /toppings/type-config/:type`, writes ADMIN |
 | **CouponsModule** | `POST /coupons/validate` (any auth), rest ADMIN; exports `CouponsService` |
 | **ImagesModule** | `POST /images/upload` — ADMIN, 5 MB limit, uploads to Cloudinary |
-| **OrdersModule** | `POST /orders`, `GET /orders`, `GET /orders/:id` — any auth; uses `CouponsService` |
+| **OrdersModule** | `POST /orders`, `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/cancel` — any auth; uses `CouponsService` |
 | **InventoryModule** | `POST/GET /inventory/snapshots`, `GET /inventory/snapshots/day`, `PATCH /inventory/snapshots/:id` — all ADMIN |
 | **AnalyticsModule** | `GET /analytics/summary`, `/top-items`, `/reconciliation-summary` (all take `from`/`to`); `GET /analytics/daily`, `/reconciliation` (take `date`); `PUT /analytics/reconciliation` — all ADMIN |
 
@@ -103,7 +103,7 @@ Seed also upserts `ToppingTypeConfig` rows for NORMAL and PREMIUM (unitPrice def
 
 ## Prisma schema — enums & models
 
-**Enums:** `Role` (STAFF, ADMIN), `ProductType` (CONE, CONTAINER, BEVERAGE), `ProductSize` (SMALL, MEDIUM, LARGE, OZ4–OZ8), `DiscountType` (PERCENTAGE, FIXED), `ToppingType` (NORMAL, PREMIUM), `SnapshotPeriod` (MORNING, NIGHT), `PaymentMethod` (QR, CASH)
+**Enums:** `Role` (STAFF, ADMIN), `ProductType` (CONE, CONTAINER, BEVERAGE), `ProductSize` (SMALL, MEDIUM, LARGE, OZ4–OZ8), `DiscountType` (PERCENTAGE, FIXED), `ToppingType` (NORMAL, PREMIUM), `SnapshotPeriod` (MORNING, NIGHT), `PaymentMethod` (QR, CASH), `CancelReason` (REGISTRO_ERRONEO, CLIENTE_CANCELO, PRODUCTO_DEFECTUOSO, OTRO)
 
 All money columns are `Decimal(10,2)` — Prisma returns `Decimal` objects, so wrap in `Number(...)` before arithmetic (the services do this consistently).
 
@@ -115,7 +115,7 @@ All money columns are `Decimal(10,2)` — Prisma returns `Decimal` objects, so w
 | `ToppingTypeConfig` | type (PK), unitPrice — default price for NORMAL/PREMIUM |
 | `Topping` | name, type, customPrice (nullable override), unitPrice (computed/stored), active |
 | `Coupon` | code (unique), discountType, discountValue, maxUses, usesCount, validFrom, validUntil, active |
-| `Order` | staffId, couponId, subtotal, discountAmount, totalAmount, notes — **no paymentMethod column** |
+| `Order` | staffId, couponId, subtotal, discountAmount, totalAmount, notes, cancelledAt, cancelledBy, cancelReason — **no paymentMethod column** |
 | `OrderPayment` | orderId, paymentMethod, amount — 1–2 rows per order (split payments) |
 | `OrderItem` | productId, flavorId (nullable for directSale), itemTotal |
 | `OrderItemTopping` | toppingId, quantity, **unitPriceAtSale** (price snapshot at time of sale) |
@@ -136,6 +136,13 @@ All money columns are `Decimal(10,2)` — Prisma returns `Decimal` objects, so w
 **Split payments:**
 - `CreateOrderDto.payments` is 1–2 entries; duplicate methods → 400
 - Payment sum must equal the order total **compared in integer cents** (`Math.round(x * 100)`) — mismatch → 422
+
+**Order cancellation (soft void):**
+- `cancelledAt IS NULL` means active — there is no `status` field
+- ADMIN cancels anything; STAFF only their own orders within `CANCEL_WINDOW_MS` (15 min)
+- Refusals are **422**, not 403 — the Angular interceptor redirects on any 403
+- 8 of the 10 order read sites filter via `activeOrder()` / `activeOrderRelation()` in `src/orders/order-filters.ts`; the 2 in `orders.service.ts` stay unfiltered so history shows cancelled orders
+- `canCancel` is computed server-side per order — do not reimplement the window rule in the frontend
 
 **Inventory snapshots:**
 - `POST /inventory/snapshots` is an **upsert** keyed on (date, period), inside a `$transaction`: existing lines and edits are deleted and recreated
@@ -191,3 +198,4 @@ Note `dashboard/daily` is declared **before** `dashboard` in `app.routes.ts` —
 | — | ✅ Done | Inventory product-type redesign (type/size lines) |
 | — | ✅ Done | Daily analytics (`/dashboard/daily`) |
 | — | ✅ Done | Cash reconciliation + dashboard reconciliation comparison |
+| — | ✅ Done | Order cancellation (soft void) with audit trail |
