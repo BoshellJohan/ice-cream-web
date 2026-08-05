@@ -166,6 +166,30 @@ describe('InventoryService', () => {
       expect(result.lines[0].remaining).toBe(6);
     });
 
+    it('does not count cancelled orders as sold in the beverage overlay', async () => {
+      const snap = {
+        ...fakeSnapshot,
+        lines: [{
+          id: 'line3', snapshotId: 'snap1',
+          productType: null, productSize: null,
+          productId: 'bev3', product: { id: 'bev3', name: 'Refresco', type: 'BEVERAGE' },
+          label: null, quantity: 5,
+        }],
+      };
+      mockPrisma.inventorySnapshot.findUnique.mockResolvedValue(snap);
+      mockPrisma.orderItem.groupBy.mockResolvedValue([]);
+
+      await service.findOne('snap1');
+
+      expect(mockPrisma.orderItem.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            order: expect.objectContaining({ cancelledAt: null }),
+          }),
+        }),
+      );
+    });
+
     it('does not add overlay fields to packaging lines', async () => {
       const snap = {
         ...fakeSnapshot,

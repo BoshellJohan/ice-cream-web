@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSnapshotDto } from './dto/create-snapshot.dto';
 import { UpdateSnapshotDto } from './dto/update-snapshot.dto';
+import { activeOrderRelation } from '../orders/order-filters';
 
 const snapshotInclude = {
   lines: {
@@ -141,7 +142,7 @@ export class InventoryService {
       _count: { id: true },
       where: {
         productId: { in: beverageLines.map(l => l.productId as string) },
-        order: { createdAt: { gte: snapshot.takenAt } },
+        ...activeOrderRelation({ createdAt: { gte: snapshot.takenAt } }),
       },
     });
 
