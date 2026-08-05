@@ -170,7 +170,7 @@ export class OrdersService {
     });
   }
 
-  async findAll(query: GetOrdersQueryDto) {
+  async findAll(user: { sub: string; role: string }, query: GetOrdersQueryDto) {
     const where: { createdAt?: { gte?: Date; lte?: Date } } = {};
     if (query.from || query.to) {
       where.createdAt = {};
@@ -181,17 +181,21 @@ export class OrdersService {
         where.createdAt.lte = toDate;
       }
     }
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: orderInclude,
     });
+    return orders.map((order) => ({
+      ...order,
+      canCancel: this.computeCanCancel(order, user),
+    }));
   }
 
-  async findOne(id: string) {
+  async findOne(user: { sub: string; role: string }, id: string) {
     const order = await this.prisma.order.findUnique({ where: { id }, include: orderInclude });
     if (!order) throw new NotFoundException(`Pedido ${id} no encontrado`);
-    return order;
+    return { ...order, canCancel: this.computeCanCancel(order, user) };
   }
 
   /**
@@ -210,6 +214,18 @@ export class OrdersService {
       return 'El plazo de 15 minutos para anular este pedido ya venció. Pide a un administrador que lo anule.';
     }
     return null;
+  }
+
+  /**
+   * true si el usuario puede anular este pedido ahora mismo. Delega en
+   * `cancelPermissionError` para no duplicar la regla de permiso.
+   */
+  private computeCanCancel(
+    order: { staffId: string; createdAt: Date; cancelledAt: Date | null },
+    user: { sub: string; role: string },
+  ): boolean {
+    if (order.cancelledAt) return false;
+    return this.cancelPermissionError(order, user) === null;
   }
 
   async cancel(

@@ -248,9 +248,11 @@ describe('OrdersService', () => {
   });
 
   describe('findAll', () => {
+    const admin = { sub: 'admin1', role: 'ADMIN' };
+
     it('returns orders ordered by createdAt desc with no filter', async () => {
       mockPrisma.order.findMany.mockResolvedValue([]);
-      await service.findAll({});
+      await service.findAll(admin, {});
       expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ orderBy: { createdAt: 'desc' } }),
       );
@@ -258,7 +260,7 @@ describe('OrdersService', () => {
 
     it('filters by date range when from/to provided', async () => {
       mockPrisma.order.findMany.mockResolvedValue([]);
-      await service.findAll({ from: '2026-06-13', to: '2026-06-13' });
+      await service.findAll(admin, { from: '2026-06-13', to: '2026-06-13' });
       expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { createdAt: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) }) },
@@ -268,9 +270,11 @@ describe('OrdersService', () => {
   });
 
   describe('findOne', () => {
+    const admin = { sub: 'admin1', role: 'ADMIN' };
+
     it('throws NotFoundException for unknown id', async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null);
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(admin, 'bad-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -374,6 +378,73 @@ describe('OrdersService', () => {
       await service.cancel(admin, 'order1', 'OTRO');
 
       expect(mockPrisma.coupon.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('canCancel flag', () => {
+    const admin = { sub: 'admin1', role: 'ADMIN' };
+    const staff = { sub: 'staff1', role: 'STAFF' };
+
+    function row(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'order1',
+        staffId: 'staff1',
+        createdAt: new Date(),
+        cancelledAt: null,
+        ...overrides,
+      };
+    }
+
+    it('is true for an ADMIN on an old order', async () => {
+      mockPrisma.order.findMany.mockResolvedValue([
+        row({ createdAt: new Date('2020-01-01T00:00:00Z') }),
+      ]);
+
+      const result = await service.findAll(admin, {});
+
+      expect(result[0].canCancel).toBe(true);
+    });
+
+    it('is true for the owning STAFF inside the window', async () => {
+      mockPrisma.order.findMany.mockResolvedValue([row()]);
+
+      const result = await service.findAll(staff, {});
+
+      expect(result[0].canCancel).toBe(true);
+    });
+
+    it('is false for the owning STAFF past the window', async () => {
+      mockPrisma.order.findMany.mockResolvedValue([
+        row({ createdAt: new Date(Date.now() - 16 * 60 * 1000) }),
+      ]);
+
+      const result = await service.findAll(staff, {});
+
+      expect(result[0].canCancel).toBe(false);
+    });
+
+    it("is false for STAFF on another user's order", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([row({ staffId: 'otro' })]);
+
+      const result = await service.findAll(staff, {});
+
+      expect(result[0].canCancel).toBe(false);
+    });
+
+    it('is false for an already-cancelled order, even for an ADMIN', async () => {
+      mockPrisma.order.findMany.mockResolvedValue([row({ cancelledAt: new Date() })]);
+
+      const result = await service.findAll(admin, {});
+
+      expect(result[0].canCancel).toBe(false);
+    });
+
+    it('is applied by findOne too', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(row());
+
+      const result = await service.findOne(staff, 'order1');
+
+      expect(result.canCancel).toBe(true);
     });
   });
 });
