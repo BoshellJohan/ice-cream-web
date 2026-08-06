@@ -8,7 +8,7 @@ const mockPrisma = {
   product: { findMany: jest.fn() },
   flavor: { findMany: jest.fn() },
   topping: { findMany: jest.fn() },
-  order: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+  order: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   coupon: { update: jest.fn(), updateMany: jest.fn() },
   $transaction: jest.fn(),
 };
@@ -309,24 +309,28 @@ describe('OrdersService', () => {
       };
     }
 
+    function cancelledOrderRow(overrides: Record<string, unknown> = {}) {
+      return { id: 'order1', cancelledAt: new Date(), cancelledBy: 'admin1', cancelReason: 'OTRO', ...overrides };
+    }
+
     beforeEach(() => {
       mockPrisma.$transaction.mockImplementation(
         (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
       );
-      mockPrisma.order.update.mockResolvedValue({ id: 'order1', cancelledAt: new Date() });
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.coupon.updateMany.mockResolvedValue({ count: 1 });
     });
 
     it('lets an ADMIN cancel any order regardless of age', async () => {
-      mockPrisma.order.findUnique.mockResolvedValue(
-        activeOrderRow({ createdAt: new Date('2020-01-01T00:00:00Z') }),
-      );
+      mockPrisma.order.findUnique
+        .mockResolvedValueOnce(activeOrderRow({ createdAt: new Date('2020-01-01T00:00:00Z') }))
+        .mockResolvedValueOnce(cancelledOrderRow());
 
       await service.cancel(admin, 'order1', 'REGISTRO_ERRONEO');
 
-      expect(mockPrisma.order.update).toHaveBeenCalledWith(
+      expect(mockPrisma.order.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'order1' },
+          where: { id: 'order1', cancelledAt: null },
           data: expect.objectContaining({
             cancelledBy: 'admin1',
             cancelReason: 'REGISTRO_ERRONEO',
@@ -336,11 +340,13 @@ describe('OrdersService', () => {
     });
 
     it('lets STAFF cancel their own order inside the window', async () => {
-      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow());
+      mockPrisma.order.findUnique
+        .mockResolvedValueOnce(activeOrderRow())
+        .mockResolvedValueOnce(cancelledOrderRow());
 
       await service.cancel(staff, 'order1', 'CLIENTE_CANCELO');
 
-      expect(mockPrisma.order.update).toHaveBeenCalled();
+      expect(mockPrisma.order.updateMany).toHaveBeenCalled();
     });
 
     it('rejects STAFF cancelling their own order past the window', async () => {
@@ -351,7 +357,7 @@ describe('OrdersService', () => {
       await expect(service.cancel(staff, 'order1', 'OTRO')).rejects.toThrow(
         UnprocessableEntityException,
       );
-      expect(mockPrisma.order.update).not.toHaveBeenCalled();
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled();
     });
 
     it("rejects STAFF cancelling another user's order", async () => {
@@ -360,7 +366,7 @@ describe('OrdersService', () => {
       await expect(service.cancel(staff, 'order1', 'OTRO')).rejects.toThrow(
         UnprocessableEntityException,
       );
-      expect(mockPrisma.order.update).not.toHaveBeenCalled();
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled();
     });
 
     it('rejects an already-cancelled order with 409', async () => {
@@ -369,6 +375,7 @@ describe('OrdersService', () => {
       );
 
       await expect(service.cancel(admin, 'order1', 'OTRO')).rejects.toThrow(ConflictException);
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled();
     });
 
     it('throws 404 when the order does not exist', async () => {
@@ -378,7 +385,9 @@ describe('OrdersService', () => {
     });
 
     it('decrements the coupon usesCount, floored at zero', async () => {
-      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow({ couponId: 'c1' }));
+      mockPrisma.order.findUnique
+        .mockResolvedValueOnce(activeOrderRow({ couponId: 'c1' }))
+        .mockResolvedValueOnce(cancelledOrderRow({ couponId: 'c1' }));
 
       await service.cancel(admin, 'order1', 'REGISTRO_ERRONEO');
 
@@ -389,25 +398,52 @@ describe('OrdersService', () => {
     });
 
     it('does not touch coupons when the order had none', async () => {
-      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow({ couponId: null }));
+      mockPrisma.order.findUnique
+        .mockResolvedValueOnce(activeOrderRow({ couponId: null }))
+        .mockResolvedValueOnce(cancelledOrderRow({ couponId: null }));
 
       await service.cancel(admin, 'order1', 'OTRO');
 
       expect(mockPrisma.coupon.updateMany).not.toHaveBeenCalled();
     });
 
-    it('includes cancelledByUser in the update so the API can return who cancelled', async () => {
-      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow());
+    it('includes cancelledByUser in the final fetch so the API can return who cancelled', async () => {
+      mockPrisma.order.findUnique
+        .mockResolvedValueOnce(activeOrderRow())
+        .mockResolvedValueOnce(cancelledOrderRow());
 
       await service.cancel(admin, 'order1', 'OTRO');
 
-      expect(mockPrisma.order.update).toHaveBeenCalledWith(
+      expect(mockPrisma.order.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: { id: 'order1' },
           include: expect.objectContaining({
             cancelledByUser: { select: { id: true, name: true } },
           }),
         }),
       );
+    });
+
+    // ── Finding 1: the stamp itself is the atomic guard against concurrent cancels ──
+
+    it('throws ConflictException when the in-transaction stamp finds the order already cancelled by a concurrent request, and does not touch the coupon', async () => {
+      mockPrisma.order.findUnique.mockResolvedValueOnce(activeOrderRow({ couponId: 'c1' }));
+      mockPrisma.order.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(service.cancel(admin, 'order1', 'OTRO')).rejects.toThrow(ConflictException);
+      expect(mockPrisma.coupon.updateMany).not.toHaveBeenCalled();
+    });
+
+    // ── Finding 2: a just-cancelled order can never be cancelled again ──
+
+    it('returns canCancel: false on the freshly cancelled order', async () => {
+      mockPrisma.order.findUnique
+        .mockResolvedValueOnce(activeOrderRow())
+        .mockResolvedValueOnce(cancelledOrderRow());
+
+      const result = await service.cancel(admin, 'order1', 'OTRO');
+
+      expect(result.canCancel).toBe(false);
     });
   });
 

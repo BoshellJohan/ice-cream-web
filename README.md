@@ -46,7 +46,7 @@ No es una app de cara al público: se prioriza la simplicidad y la comodidad tá
 |---|---|
 | 🧾 | **Toma de pedidos** en un flujo visual de 5 pasos: producto → sabor → toppings → cupón → revisión y pago |
 | 💳 | **Pagos divididos**: hasta dos métodos (efectivo y QR) por pedido |
-| 🚫 | **Anulación de pedidos**: el staff corrige un error dentro de 15 min, el admin sin límite; los anulados dejan de contar en las cifras |
+| 🚫 | **Anulación de pedidos**: el staff corrige un error dentro de 15 min, el admin sin límite; los anulados dejan de contar en las cifras. Si se anula un pedido de un día ya conciliado, la diferencia de esa conciliación cambia y conviene revisarla de nuevo |
 | 🍨 | **Catálogo** de productos, sabores y toppings administrable por el rol ADMIN |
 | 📦 | **Inventario** con snapshots de mañana/noche y registro de auditoría de ediciones |
 | 🎟️ | **Cupones** de descuento porcentual o fijo, con validación en tiempo real |

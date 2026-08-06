@@ -49,18 +49,28 @@ export class OrderHistoryComponent implements OnInit {
   }
 
   toggleExpand(id: string) {
-    this.expandedId = this.expandedId === id ? null : id;
+    if (this.expandedId === id) {
+      // Al colapsar, se limpia el flujo de anulación para que un error
+      // viejo no pueda reaparecer si la fila se vuelve a expandir.
+      this.expandedId   = null;
+      this.cancellingId = null;
+      this.cancelError  = null;
+    } else {
+      this.expandedId = id;
+    }
   }
 
   openCancel(order: Order, event: Event) {
     event.stopPropagation();          // no expandir/colapsar la fila
     this.cancellingId = order.id;
     this.cancelError  = null;
+    this.submitting   = false;
   }
 
   closeCancel() {
     this.cancellingId = null;
     this.cancelError  = null;
+    this.submitting   = false;
   }
 
   confirmCancel(orderId: string, reason: CancelReason) {
@@ -76,6 +86,9 @@ export class OrderHistoryComponent implements OnInit {
         this.submitting = false;
         this.cancelError =
           err?.error?.message ?? 'No se pudo anular el pedido. Inténtalo de nuevo.';
+        // La copia local puede estar obsoleta (p. ej. otro usuario ya lo anuló);
+        // se recarga para que la fila refleje su estado real junto al mensaje.
+        this.load();
       },
     });
   }

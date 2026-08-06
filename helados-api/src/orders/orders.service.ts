@@ -242,6 +242,20 @@ export class OrdersService {
     if (permissionError) throw new UnprocessableEntityException(permissionError);
 
     return this.prisma.$transaction(async (tx) => {
+      // El where con cancelledAt: null hace del propio stamp la guarda atómica:
+      // si dos solicitudes llegan a la vez, solo una actualiza una fila y la
+      // otra recibe count === 0 (evita doble decremento de cupón / auditoría
+      // con el usuario o motivo equivocado).
+      const stamped = await tx.order.updateMany({
+        where: { id: orderId, cancelledAt: null },
+        data: {
+          cancelledAt: new Date(),
+          cancelledBy: user.sub,
+          cancelReason: reason,
+        },
+      });
+      if (stamped.count === 0) throw new ConflictException('El pedido ya está anulado');
+
       if (order.couponId) {
         // updateMany con `usesCount > 0` evita bajar de cero sin leer primero.
         await tx.coupon.updateMany({
@@ -250,15 +264,9 @@ export class OrdersService {
         });
       }
 
-      return tx.order.update({
-        where: { id: orderId },
-        data: {
-          cancelledAt: new Date(),
-          cancelledBy: user.sub,
-          cancelReason: reason,
-        },
-        include: orderInclude,
-      });
+      const updated = await tx.order.findUnique({ where: { id: orderId }, include: orderInclude });
+      // Un pedido recién anulado nunca vuelve a ser anulable.
+      return { ...updated!, canCancel: false };
     });
   }
 }

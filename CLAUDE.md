@@ -143,6 +143,7 @@ All money columns are `Decimal(10,2)` — Prisma returns `Decimal` objects, so w
 - Refusals are **422**, not 403 — the Angular interceptor redirects on any 403
 - 8 of the 10 order read sites filter via `activeOrder()` / `activeOrderRelation()` in `src/orders/order-filters.ts`; the 2 in `orders.service.ts` stay unfiltered so history shows cancelled orders
 - `canCancel` is computed server-side per order — do not reimplement the window rule in the frontend
+- ADMIN has no time limit, so an ADMIN can void an order from a day that already has a `DailyReconciliation` row; `getReconciliationSummary` recomputes system totals live, so that day's variance will change after the void — this is intentional, not a bug, but re-check the reconciliation for that date afterward
 
 **Inventory snapshots:**
 - `POST /inventory/snapshots` is an **upsert** keyed on (date, period), inside a `$transaction`: existing lines and edits are deleted and recreated
