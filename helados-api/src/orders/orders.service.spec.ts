@@ -276,6 +276,22 @@ describe('OrdersService', () => {
       mockPrisma.order.findUnique.mockResolvedValue(null);
       await expect(service.findOne(admin, 'bad-id')).rejects.toThrow(NotFoundException);
     });
+
+    it('includes cancelledByUser so the API can return who cancelled the order', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 'order1', staffId: 'admin1', createdAt: new Date(), cancelledAt: null,
+      });
+
+      await service.findOne(admin, 'order1');
+
+      expect(mockPrisma.order.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            cancelledByUser: { select: { id: true, name: true } },
+          }),
+        }),
+      );
+    });
   });
 
   describe('cancel', () => {
@@ -378,6 +394,20 @@ describe('OrdersService', () => {
       await service.cancel(admin, 'order1', 'OTRO');
 
       expect(mockPrisma.coupon.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('includes cancelledByUser in the update so the API can return who cancelled', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(activeOrderRow());
+
+      await service.cancel(admin, 'order1', 'OTRO');
+
+      expect(mockPrisma.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            cancelledByUser: { select: { id: true, name: true } },
+          }),
+        }),
+      );
     });
   });
 

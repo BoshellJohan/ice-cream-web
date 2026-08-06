@@ -19,6 +19,7 @@ const orderInclude = {
   },
   staff:  { select: { id: true, name: true } },
   coupon: { select: { id: true, code: true } },
+  cancelledByUser: { select: { id: true, name: true } },
 } as const;
 
 @Injectable()
